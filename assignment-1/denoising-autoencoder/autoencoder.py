@@ -6,42 +6,53 @@ import torch
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 
+
 class Autoencoder(torch.nn.Module):
-    def __init__(self, n_visible, n_hidden):
+    def __init__(self, n_visible, n_hidden, batch_size):
         super(Autoencoder, self).__init__()
-        self.W = Parameter(torch.Tensor(n_visible, n_hidden))
+        self.n_visible = n_visible
+        self.n_hidden = n_hidden
+        self.batch_size = batch_size
+        self.W = Parameter(torch.Tensor(n_visible, n_hidden), requires_grad=True)
         self.W.data.uniform_(-4 * np.sqrt(6. / (n_hidden + n_visible)),
                              4 * np.sqrt(6. / (n_hidden + n_visible)))
-        self.b = Parameter(torch.zeros(n_hidden))
-        self.b_prime = Parameter(torch.zeros(n_visible))
+        self.b = Parameter(torch.zeros(1, n_hidden), requires_grad=True)
+        self.b_prime = Parameter(torch.zeros(1, n_visible), requires_grad=True)
 
-    def forward(self, x):
-        # Make this compatible for the mini-batch case when x contains N examples
-        u = x.mm(self.W)
-        t = torch.add(u, self.b)
+    def forward(self, X):
+        ones = Parameter(torch.ones(self.batch_size, 1))
+        t = X.mm(self.W)
+        t = t + ones.mm(self.b)
         t = torch.sigmoid(t)
-        t = t.mm(self.W.transpose(1, 0)) + self.b_prime
+        t = t.mm(self.W.transpose(1, 0)) + ones.mm(self.b_prime)
         t = torch.sigmoid(t)
         return t
 
-N = 1
-d_in = 3
-d_out = 2
-dtype = torch.FloatTensor
 
-ae = Autoencoder(n_visible=d_in, n_hidden=d_out)
-optimizer = torch.optim.SGD(ae.parameters(), lr=0.01)
+def main():
+    N = 5
+    d_in = 3
+    d_out = 2
+    dtype = torch.FloatTensor
 
-x = Variable(torch.randn(N, d_in).type(dtype), requires_grad=False)
-tilde_x = x.clone()
-# tilde_x # corrupt the input
+    ae = Autoencoder(n_visible=d_in, n_hidden=d_out, batch_size=N)
+    optimizer = torch.optim.SGD(ae.parameters(), lr=0.01)
+    epochs = 10
 
-# Training
-optimizer.zero_grad()
-z = ae.forward(tilde_x)
-loss = - torch.sum(x * torch.log(z) + (1.0 - x) * torch.log(1.0 - z)) # check if you need to give axis
-cost = torch.mean(loss)
-cost.backward()
-optimizer.step()
+    X = Variable(torch.randn(N, d_in).type(dtype), requires_grad=False)
+
+    # Training
+    for e in range(epochs):
+        tilde_x = X.clone()
+        # tilde_x # corrupt the input
+        optimizer.zero_grad()
+        Z = ae.forward(tilde_x)
+        loss = - torch.sum(X * torch.log(Z) + (1.0 - X) * torch.log(1.0 - Z), 1)  # check if you need to give axis
+        cost = torch.mean(loss)
+        cost.backward()
+        optimizer.step()
+        print(cost.data)
 
 
+if __name__ == "__main__":
+    main()
