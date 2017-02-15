@@ -29,6 +29,7 @@ class Autoencoder(torch.nn.Module):
         return t
 
 def corrupt_input(X):
+    # TODO: Verify whether introducing noise like this is correct.
     noise = torch.FloatTensor(np.random.binomial(1, 0.5, size=X.data.size()))
     return Variable(X.data.clone() * noise)
 
