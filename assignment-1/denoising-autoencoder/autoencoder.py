@@ -30,32 +30,40 @@ class Autoencoder(torch.nn.Module):
 
 def corrupt_input(X):
     noise = torch.FloatTensor(np.random.binomial(1, 0.5, size=X.data.size()))
-    return Variable(X.data * noise)
+    return Variable(X.data.clone() * noise)
 
 
 def main():
-    N = 5
-    d_in = 3
-    d_out = 2
+    N = 1000
+    d_in = 784
+    d_out = 500
     dtype = torch.FloatTensor
+    batch_size = 32
 
-    ae = Autoencoder(n_visible=d_in, n_hidden=d_out, batch_size=N)
+    ae = Autoencoder(n_visible=d_in, n_hidden=d_out, batch_size=batch_size)
     optimizer = torch.optim.SGD(ae.parameters(), lr=0.01)
-    epochs = 10
+    epochs = 20
 
     X = Variable(torch.randn(N, d_in).type(dtype), requires_grad=False)
 
     # Training
     for e in range(epochs):
-        # corrupt the input
-        tilde_x = corrupt_input(X)
-        optimizer.zero_grad()
-        Z = ae.forward(tilde_x)
-        loss = - torch.sum(X * torch.log(Z) + (1.0 - X) * torch.log(1.0 - Z), 1)  # check if you need to give axis
-        cost = torch.mean(loss)
-        cost.backward()
-        optimizer.step()
-        print(cost.data)
+        agg_cost = 0.
+        num_batches = N / batch_size
+        for k in range(num_batches):
+            start, end = k * (batch_size), (k + 1) * batch_size
+            bX = X[start:end]
+            # corrupt the input
+            tilde_x = corrupt_input(bX)
+            optimizer.zero_grad()
+            Z = ae.forward(tilde_x)
+            loss = - torch.sum(bX * torch.log(Z) + (1.0 - bX) * torch.log(1.0 - Z), 1)
+            cost = torch.mean(loss)
+            cost.backward()
+            optimizer.step()
+            agg_cost += cost
+        agg_cost /= num_batches
+        print("epoch:", str(e) + ", cost:", agg_cost.data[0])
 
 
 if __name__ == "__main__":
