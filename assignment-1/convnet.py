@@ -8,11 +8,11 @@ import os
 from os import path
 import gzip
 import urllib
+import pickle
 
 import torch
 from torch.autograd import Variable
 from torch import optim
-import pickle
 
 DATASET_DIR = 'data/'
 
