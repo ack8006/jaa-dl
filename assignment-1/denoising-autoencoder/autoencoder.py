@@ -28,6 +28,10 @@ class Autoencoder(torch.nn.Module):
         t = torch.sigmoid(t)
         return t
 
+def corrupt_input(X):
+    noise = torch.FloatTensor(np.random.binomial(1, 0.5, size=X.data.size()))
+    return Variable(X.data * noise)
+
 
 def main():
     N = 5
@@ -43,8 +47,8 @@ def main():
 
     # Training
     for e in range(epochs):
-        tilde_x = X.clone()
-        # tilde_x # corrupt the input
+        # corrupt the input
+        tilde_x = corrupt_input(X)
         optimizer.zero_grad()
         Z = ae.forward(tilde_x)
         loss = - torch.sum(X * torch.log(Z) + (1.0 - X) * torch.log(1.0 - Z), 1)  # check if you need to give axis
