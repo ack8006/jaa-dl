@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
+from torch import optim
 
 
 class Autoencoder(torch.nn.Module):
@@ -13,9 +14,9 @@ class Autoencoder(torch.nn.Module):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
         self.batch_size = batch_size
-        self.W = Parameter(torch.Tensor(n_visible, n_hidden), requires_grad=True)
-        self.W.data.uniform_(-4 * np.sqrt(6. / (n_hidden + n_visible)),
-                             4 * np.sqrt(6. / (n_hidden + n_visible)))
+        self.W = Parameter(torch.FloatTensor(n_visible, n_hidden), requires_grad=True)
+        self.W.data.uniform_(-4. * np.sqrt(6. / (n_hidden + n_visible)),
+                             4. * np.sqrt(6. / (n_hidden + n_visible)))
         self.b = Parameter(torch.zeros(1, n_hidden), requires_grad=True)
         self.b_prime = Parameter(torch.zeros(1, n_visible), requires_grad=True)
 
@@ -34,7 +35,7 @@ def corrupt_input(X, corruption_level=0.5):
     return Variable(X.data.clone() * noise)
 
 
-def main():
+def test_autoencoder():
     N = 1000
     d_in = 784
     d_out = 500
@@ -42,7 +43,7 @@ def main():
     batch_size = 32
 
     ae = Autoencoder(n_visible=d_in, n_hidden=d_out, batch_size=batch_size)
-    optimizer = torch.optim.SGD(ae.parameters(), lr=0.01)
+    optimizer = optim.SGD(ae.parameters(), lr=0.01)
     epochs = 20
 
     X = Variable(torch.randn(N, d_in).type(dtype), requires_grad=False)
@@ -52,7 +53,7 @@ def main():
         agg_cost = 0.
         num_batches = N / batch_size
         for k in range(num_batches):
-            start, end = k * (batch_size), (k + 1) * batch_size
+            start, end = k * batch_size, (k + 1) * batch_size
             bX = X[start:end]
             # corrupt the input
             tilde_x = corrupt_input(bX, corruption_level=0.5)
@@ -65,6 +66,53 @@ def main():
             agg_cost += cost
         agg_cost /= num_batches
         print("epoch:", str(e) + ", cost:", agg_cost.data[0])
+
+
+class MLP(torch.nn.Module):
+    """Multilayer Perceptron"""
+    def __init__(self, n_in, n_hidden, n_out):
+        super(MLP, self).__init__()
+        self.linear1 = torch.nn.Linear(n_in, n_hidden, bias=True)
+        self.linear1.weight.data.uniform_(-4. * np.sqrt(6. / (n_in + n_out)),
+                                          4. * np.sqrt(6. / (n_in + n_out)))
+        self.linear1.bias.data = torch.zeros(n_hidden)
+        self.sigmoid1 = torch.nn.Sigmoid()
+        self.linear2 = torch.nn.Linear(n_hidden, n_out, bias=True)
+        self.linear2.bias.data = torch.zeros(n_out)
+        self.softmax1 = torch.nn.Softmax()
+
+    def forward(self, X):
+        t = self.linear1.forward(X)
+        t = self.sigmoid1.forward(t)
+        t = self.linear2.forward(t)
+        t = self.softmax1.forward(t)
+        return t
+
+
+def train_mlp(train_X, train_y, mlp, curr_epoch, lr=0.01, reg='l2',
+              reg_constant=0, batch_size=64):
+    N = train_X.data.size()[0]
+    optimizer = optim.SGD(mlp.parameters(), lr=lr)
+    num_batches = N / batch_size
+    loss = torch.nn.NLLLoss()
+    agg_cost = 0.
+    for k in range(num_batches):
+        start, end = k * batch_size, (k + 1) * batch_size
+        bX = train_X[start:end]
+        by = train_y[start:end]
+        p = mlp.forward(bX)
+        # TODO: Add regularization term
+        cost = loss.forward(p, by)
+        agg_cost += cost
+        optimizer.zero_grad()
+        cost.backward()
+        optimizer.step()
+    agg_cost /= num_batches
+    print("Epoch:", str(curr_epoch) + ", Loss:", agg_cost.data[0])
+
+
+def main():
+    pass
 
 
 if __name__ == "__main__":
