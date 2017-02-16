@@ -92,7 +92,7 @@ class MLP(torch.nn.Module):
 def train_mlp(train_X, train_y, mlp, curr_epoch, lr=0.01, reg='l2',
               reg_constant=0, batch_size=64):
     N = train_X.data.size()[0]
-    optimizer = optim.SGD(mlp.parameters(), lr=lr)
+    optimizer = optim.SGD(mlp.parameters(), lr=lr, weight_decay=0.0001)
     num_batches = N / batch_size
     loss = torch.nn.NLLLoss()
     agg_cost = 0.
@@ -101,7 +101,6 @@ def train_mlp(train_X, train_y, mlp, curr_epoch, lr=0.01, reg='l2',
         bX = train_X[start:end]
         by = train_y[start:end]
         p = mlp.forward(bX)
-        # TODO: Add regularization term
         cost = loss.forward(p, by)
         agg_cost += cost
         optimizer.zero_grad()
