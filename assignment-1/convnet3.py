@@ -13,8 +13,6 @@ import torch
 from torch.autograd import Variable
 from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.preprocessing import scale 
-from sklearn.utils import shuffle
 import pickle
 
 DATASET_DIR = 'data/'
