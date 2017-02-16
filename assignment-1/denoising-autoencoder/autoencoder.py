@@ -29,9 +29,8 @@ class Autoencoder(torch.nn.Module):
         return t
 
 
-def corrupt_input(X):
-    # TODO: Verify whether introducing noise like this is correct.
-    noise = torch.FloatTensor(np.random.binomial(1, 0.5, size=X.data.size()))
+def corrupt_input(X, corruption_level=0.5):
+    noise = torch.FloatTensor(np.random.binomial(1, corruption_level, size=X.data.size()))
     return Variable(X.data.clone() * noise)
 
 
@@ -56,7 +55,7 @@ def main():
             start, end = k * (batch_size), (k + 1) * batch_size
             bX = X[start:end]
             # corrupt the input
-            tilde_x = corrupt_input(bX)
+            tilde_x = corrupt_input(bX, corruption_level=0.5)
             optimizer.zero_grad()
             Z = ae.forward(tilde_x)
             loss = - torch.sum(bX * torch.log(Z) + (1.0 - bX) * torch.log(1.0 - Z), 1)
