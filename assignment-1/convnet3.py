@@ -2,13 +2,13 @@
 # https://github.com/vinhkhuc/PyTorch-Mini-Tutorials/blob/master/5_convolutional_net.py
 
 from __future__ import print_function
-import sys
 
 import numpy as np
 import os
 from os import path
 import gzip
 import urllib
+from argparse import ArgumentParser
 
 import torch
 from torch.autograd import Variable
@@ -31,10 +31,10 @@ def one_hot(x, n):
 def download_file(url, local_path):
     dir_path = path.dirname(local_path)
     if not path.exists(dir_path):
-        sys.stdout.write("Creating the directory '%s' ..." % dir_path)
+        print("Creating the directory '%s' ..." % dir_path)
         os.makedirs(dir_path)
 
-    sys.stdout.write("Downloading from '%s' ..." % url)
+    print("Downloading from '%s' ..." % url)
     urllib.URLopener().retrieve(url, local_path)
 
 
@@ -93,7 +93,7 @@ def load_mnist(ntrain=60000, ntest=10000, onehot=True):
 
 # Separately create two sequential here since PyTorch doesn't have nn.View()
 class ConvNet(torch.nn.Module):
-    def __init__(self, output_dim):
+    def __init__(self, output_dim, dropout=0.5):
         super(ConvNet, self).__init__()
 
         self.conv = torch.nn.Sequential()
@@ -101,14 +101,14 @@ class ConvNet(torch.nn.Module):
         self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
         self.conv.add_module("relu_1", torch.nn.ReLU())
         self.conv.add_module("conv_2", torch.nn.Conv2d(10, 20, kernel_size=5))
-        self.conv.add_module("dropout_2", torch.nn.Dropout())
+        self.conv.add_module("dropout_2", torch.nn.Dropout(p=dropout))
         self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
         self.conv.add_module("relu_2", torch.nn.ReLU())
 
         self.fc = torch.nn.Sequential()
         self.fc.add_module("fc1", torch.nn.Linear(320, 50))
         self.fc.add_module("relu_3", torch.nn.ReLU())
-        self.fc.add_module("dropout_3", torch.nn.Dropout())
+        self.fc.add_module("dropout_3", torch.nn.Dropout(p=dropout))
         self.fc.add_module("fc2", torch.nn.Linear(50, output_dim))
         self.fc.add_module("relu_4", torch.nn.ReLU())
         self.fc.add_module("softmax", torch.nn.Softmax())
@@ -147,7 +147,12 @@ def predict(model, x_val):
 
 def main():
     torch.manual_seed(42)
-    # trX, teX, trY, teY = load_mnist(onehot=False)
+
+    parser = ArgumentParser()
+    parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
+    parser.add_argument('-d', '--dropout', default=0.5)
+    # parser.add_argument()
+    args = vars(parser.parse_args())
 
     use_cuda = False
     momentum_par = 0.5
@@ -158,13 +163,13 @@ def main():
 
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
-    sys.stdout.write('Loading Training Data')
+    print('Loading Training Data')
     train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
     train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
     
-    sys.stdout.write('Loading Validation Data')
+    print('Loading Validation Data')
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
 
@@ -173,27 +178,27 @@ def main():
 
     n_examples = len(train_data)
     n_classes = 10
-    model = ConvNet(output_dim=n_classes)
+    model = ConvNet(output_dim=n_classes, dropout=float(args['dropout']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     optimizer = optim.SGD(model.parameters(), lr=0.01)
     batch_size = 4
 
-    sys.stdout.write('Creating Data Loaders')
+    print('Creating Data Loaders')
     train_loader = DataLoader(TensorDataset(train_data, train_label),
                                 batch_size = batch_size,
                                 shuffle=True)
     # valid_loader = DataLoader(TensorDataset(valid_data, valid_label))
 
-    epochs = 1000
+    epochs = int(args['epochs'])
 
-    sys.stdout.write('Training Fun Time!!!')
+    print('Training Fun Time!!!')
     for i in range(epochs):
         cost = 0.
         for ind, (data, label) in enumerate(train_loader):
             cost += train(model, loss, optimizer, data, label[:,0])
         predY = predict(model, valid_data)
         pred_train_y = predict(model, train_data)
-        sys.stdout.write("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
+        print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
               % (i + 1, 
                 cost / (n_examples/batch_size), 
                 100. * np.mean(pred_train_y == train_label.numpy()),
