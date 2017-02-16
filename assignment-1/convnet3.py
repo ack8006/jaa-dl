@@ -151,6 +151,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
     parser.add_argument('-d', '--dropout', default=0.5)
+    parser.add_argument('-b', '--minibatch', default=16)
     # parser.add_argument()
     args = vars(parser.parse_args())
 
@@ -181,7 +182,7 @@ def main():
     model = ConvNet(output_dim=n_classes, dropout=float(args['dropout']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     optimizer = optim.SGD(model.parameters(), lr=0.01)
-    batch_size = 4
+    batch_size = int(args['minibatch'])
 
     print('Creating Data Loaders')
     train_loader = DataLoader(TensorDataset(train_data, train_label),
