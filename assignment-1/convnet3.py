@@ -30,10 +30,10 @@ def one_hot(x, n):
 def download_file(url, local_path):
     dir_path = path.dirname(local_path)
     if not path.exists(dir_path):
-        print("Creating the directory '%s' ..." % dir_path)
+        sys.stdout.write("Creating the directory '%s' ..." % dir_path)
         os.makedirs(dir_path)
 
-    print("Downloading from '%s' ..." % url)
+    sys.stdout.write("Downloading from '%s' ..." % url)
     urllib.URLopener().retrieve(url, local_path)
 
 
@@ -157,13 +157,13 @@ def main():
 
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
-    print('Loading Training Data')
+    sys.stdout.write('Loading Training Data')
     train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
     train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
     
-    print('Loading Validation Data')
+    sys.stdout.write('Loading Validation Data')
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
 
@@ -177,7 +177,7 @@ def main():
     optimizer = optim.SGD(model.parameters(), lr=0.01)
     batch_size = 4
 
-    print('Creating Data Loaders')
+    sys.stdout.write('Creating Data Loaders')
     train_loader = DataLoader(TensorDataset(train_data, train_label),
                                 batch_size = batch_size,
                                 shuffle=True)
@@ -185,14 +185,14 @@ def main():
 
     epochs = 1000
 
-    print('Training Fun Time!!!')
+    sys.stdout.write('Training Fun Time!!!')
     for i in range(epochs):
         cost = 0.
         for ind, (data, label) in enumerate(train_loader):
             cost += train(model, loss, optimizer, data, label[:,0])
         predY = predict(model, valid_data)
         pred_train_y = predict(model, train_data)
-        print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
+        sys.stdout.write("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
               % (i + 1, 
                 cost / (n_examples/batch_size), 
                 100. * np.mean(pred_train_y == train_label.numpy()),
