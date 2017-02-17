@@ -123,7 +123,7 @@ class ConvNet(torch.nn.Module):
 
     def forward(self, x):
         x = self.conv.forward(x)
-        x = x.view(-1, 320)
+        x = x.view(-1, 1024)
         return self.fc.forward(x)
 
 
