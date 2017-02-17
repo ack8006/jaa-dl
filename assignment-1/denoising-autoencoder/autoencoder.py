@@ -22,11 +22,12 @@ class Autoencoder(torch.nn.Module):
 
     # TODO: Adapt autoencoder for DataLoader.
 
-    def __init__(self, n_visible, n_hidden, batch_size):
+    def __init__(self, n_visible, n_hidden, batch_size, corruption=0.2):
         super(Autoencoder, self).__init__()
         self.n_visible = n_visible
         self.n_hidden = n_hidden
         self.batch_size = batch_size
+        self.corruption = corruption
         self.W = Parameter(torch.FloatTensor(n_visible, n_hidden), requires_grad=True)
         self.W.data.uniform_(-4. * np.sqrt(6. / (n_hidden + n_visible)),
                              4. * np.sqrt(6. / (n_hidden + n_visible)))
@@ -35,14 +36,14 @@ class Autoencoder(torch.nn.Module):
         self.b_prime = Parameter(torch.zeros(1, n_visible), requires_grad=True)
         self.sigmoid2 = torch.nn.Sigmoid()
 
-    @staticmethod
-    def corrupt(X, corruption=0.2):
-        noise = torch.FloatTensor(np.random.binomial(1, 1.0 - corruption, size=X.data.size()))
+    def corrupt(self, X):
+        noise = torch.FloatTensor(np.random.binomial(1, 1.0 - self.corruption, size=X.data.size()))
         return Variable(X.data.clone() * noise)
 
     def encode(self, x):
+        tilde_x = self.corrupt(x)
         ones = Parameter(torch.ones(self.batch_size, 1))
-        t = x.mm(self.W)
+        t = tilde_x.mm(self.W)
         t = t + ones.mm(self.b)
         t = self.sigmoid1.forward(t)
         return t
@@ -58,7 +59,7 @@ class Autoencoder(torch.nn.Module):
         t = self.decode(t)
         return t
 
-    def train_ae(self, train_X, optimizer, epochs, corruption=0.2, verbose=True):
+    def train_ae(self, train_X, optimizer, epochs, verbose=True):
         N = train_X.data.size()[0]
         for e in range(epochs):
             agg_cost = 0.
@@ -66,9 +67,8 @@ class Autoencoder(torch.nn.Module):
             for k in range(num_batches):
                 start, end = k * self.batch_size, (k + 1) * self.batch_size
                 bX = train_X[start:end]
-                tilde_x = self.corrupt(bX, corruption=corruption)
                 optimizer.zero_grad()
-                Z = self.forward(tilde_x)
+                Z = self.forward(bX)
                 loss = -torch.sum(bX * torch.log(Z) + (1.0 - bX) * torch.log(1.0 - Z), 1)
                 cost = torch.mean(loss)
                 cost.backward()
