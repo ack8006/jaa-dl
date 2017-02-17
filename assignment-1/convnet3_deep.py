@@ -8,6 +8,7 @@ import os
 from os import path
 import gzip
 import urllib
+from argparse import ArgumentParser
 
 import torch
 from torch.autograd import Variable
@@ -115,7 +116,7 @@ class ConvNet(torch.nn.Module):
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
         self.fc.add_module("relu_6", torch.nn.ReLU())
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
-        self.fc.add_module("fc2", torch.nn.Linear(64, output_dim))
+        self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
         self.fc.add_module("relu_7", torch.nn.ReLU())
         self.fc.add_module("softmax", torch.nn.Softmax())
 
