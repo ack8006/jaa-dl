@@ -148,7 +148,7 @@ def main():
     torch.manual_seed(42)
 
     epochs = 1000
-    dropout = 0.5
+    dropout = 0.4
     batch_size = 16
     use_cuda = False
     momentum_par = 0.5
