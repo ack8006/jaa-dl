@@ -9,6 +9,7 @@ from torch import optim
 
 
 class Autoencoder(torch.nn.Module):
+    """Autoencoder"""
     def __init__(self, n_visible, n_hidden, batch_size):
         super(Autoencoder, self).__init__()
         self.n_visible = n_visible
@@ -30,7 +31,7 @@ class Autoencoder(torch.nn.Module):
         return t
 
 
-def corrupt_input(X, corruption_level=0.5):
+def corrupt_input(X, corruption_level=0.2):
     noise = torch.FloatTensor(np.random.binomial(1, corruption_level, size=X.data.size()))
     return Variable(X.data.clone() * noise)
 
@@ -76,14 +77,14 @@ class MLP(torch.nn.Module):
         self.linear1.weight.data.uniform_(-4. * np.sqrt(6. / (n_in + n_out)),
                                           4. * np.sqrt(6. / (n_in + n_out)))
         self.linear1.bias.data = torch.zeros(n_hidden)
-        self.sigmoid1 = torch.nn.Sigmoid()
+        self.activation1 = torch.nn.Sigmoid()
         self.linear2 = torch.nn.Linear(n_hidden, n_out, bias=True)
         self.linear2.bias.data = torch.zeros(n_out)
         self.softmax1 = torch.nn.Softmax()
 
     def forward(self, X):
         t = self.linear1.forward(X)
-        t = self.sigmoid1.forward(t)
+        t = self.activation1.forward(t)
         t = self.linear2.forward(t)
         t = self.softmax1.forward(t)
         return t
@@ -108,6 +109,77 @@ def train_mlp(train_X, train_y, mlp, curr_epoch, lr=0.01, reg='l2',
         optimizer.step()
     agg_cost /= num_batches
     print("Epoch:", str(curr_epoch) + ", Loss:", agg_cost.data[0])
+
+
+class SDA(torch.nn.Module):
+    """Stacked Denoising Autoencoder"""
+    def __init__(self, n_in, n_hidden1, n_hidden2, n_out, batch_size):
+        super(SDA, self).__init__()
+        self.batch_size = batch_size
+
+        # Denoising Autoencoder 1
+        self.dna1 = Autoencoder(n_in, n_hidden1, batch_size)
+
+        # Denoising Autoencoder 2
+        self.dna2 = Autoencoder(n_hidden1, n_hidden2, batch_size)
+
+    def pretrain_hidden1(self, X):
+        """Pre-trains Denoising Autoencoder 1"""
+        return self.dna1.forward(X)
+
+    def pretrain_hidden2(self, X):
+        """Pre-trains Denoising Autoencoder 2"""
+        return self.dna2.forward(X)
+
+    def initialize_sigmoid_layers(self, W1, W2):
+        pass
+
+    def finetune_sigmoid(self, X):
+        pass
+
+
+def pre_train_sda(train_X, sda, epochs, lr=0.01, batch_size=64):
+    N = train_X.data.size()[0]
+
+    # Pretrain hidden1
+    optimizer1 = optim.SGD(sda.dna1.parameters(), lr=0.01)
+    for e in range(epochs):
+        agg_cost = 0.
+        num_batches = N / batch_size
+        for k in range(num_batches):
+            start, end = k * batch_size, (k + 1) * batch_size
+            bX = train_X[start:end]
+            optimizer1.zero_grad()
+            # corrupt the input
+            tilde_x = corrupt_input(bX, corruption_level=0.2)
+            Z = sda.pretrain_hidden1(tilde_x)
+            loss = - torch.sum(bX * torch.log(Z) + (1.0 - bX) * torch.log(1.0 - Z), 1)
+            cost = torch.mean(loss)
+            cost.backward()
+            optimizer1.step()
+        agg_cost /= num_batches
+        print("Pre-train-1 epoch:", str(e) + ", cost:", agg_cost.data[0])
+
+    # Pretrain hidden2
+    optimizer2 = optim.SGD(sda.dna2.parameters(), lr=0.01)
+    for e in range(epochs):
+        agg_cost = 0.
+        num_batches = N / batch_size
+        for k in range(num_batches):
+            start, end = k * batch_size, (k + 1) * batch_size
+            bX = train_X[start:end]
+            optimizer2.zero_grad()
+            # corrupt the input
+            tilde_x = corrupt_input(bX, corruption_level=0.2)
+            Z1 = sda.dna1.forward(bX)
+            Z2 = sda.pretrain_hidden2(Z1)
+            loss = - torch.sum(Z1 * torch.log(Z2) + (1.0 - Z1) * torch.log(1.0 - Z2), 1)
+            cost = torch.mean(loss)
+            cost.backward()
+            optimizer2.step()
+        agg_cost /= num_batches
+        print("Pre-train-2 epoch:", str(e) + ", cost:", agg_cost.data[0])
+
 
 
 def main():
