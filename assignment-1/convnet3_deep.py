@@ -155,9 +155,13 @@ def predict(model, x_val):
 def main():
     torch.manual_seed(42)
 
-    epochs = 1000
-    dropout = 0.4
-    batch_size = 16
+    parser = ArgumentParser()
+    parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
+    parser.add_argument('-d', '--dropout', default=0.5)
+    parser.add_argument('-b', '--minibatch', default=16)
+    # parser.add_argument()
+    args = vars(parser.parse_args())
+
     use_cuda = False
     momentum_par = 0.5
     lr = 0.01
@@ -182,14 +186,18 @@ def main():
 
     n_examples = len(train_data)
     n_classes = 10
-    model = ConvNet(output_dim=n_classes, dropout=dropout)
+    model = ConvNet(output_dim=n_classes, dropout=float(args['dropout']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     optimizer = optim.SGD(model.parameters(), lr=0.01)
+    batch_size = int(args['minibatch'])
 
     print('Creating Data Loaders')
     train_loader = DataLoader(TensorDataset(train_data, train_label),
                                 batch_size = batch_size,
                                 shuffle=True)
+    # valid_loader = DataLoader(TensorDataset(valid_data, valid_label))
+
+    epochs = int(args['epochs'])
 
     print('Training Fun Time!!!')
     for i in range(epochs):
@@ -207,4 +215,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
