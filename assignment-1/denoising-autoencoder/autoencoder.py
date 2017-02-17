@@ -22,23 +22,23 @@ class Autoencoder(torch.nn.Module):
 
     # TODO: Adapt autoencoder for DataLoader.
 
-    def __init__(self, n_visible, n_hidden, batch_size, corruption=0.2):
+    def __init__(self, d_in, d_hidden, batch_size, corruption=0.2):
         super(Autoencoder, self).__init__()
-        self.n_visible = n_visible
-        self.n_hidden = n_hidden
+        self.d_in = d_in
+        self.d_hidden = d_hidden
         self.batch_size = batch_size
         self.corruption = corruption
-        self.W = Parameter(torch.FloatTensor(n_visible, n_hidden), requires_grad=True)
-        self.W.data.uniform_(-4. * np.sqrt(6. / (n_hidden + n_visible)),
-                             4. * np.sqrt(6. / (n_hidden + n_visible)))
-        self.b = Parameter(torch.zeros(1, n_hidden), requires_grad=True)
+        self.W = Parameter(torch.FloatTensor(d_in, d_hidden), requires_grad=True)
+        self.W.data.uniform_(-4. * np.sqrt(6. / (d_hidden + d_in)),
+                             4. * np.sqrt(6. / (d_hidden + d_in)))
+        self.b = Parameter(torch.zeros(1, d_hidden), requires_grad=True)
         self.sigmoid1 = torch.nn.Sigmoid()
-        self.b_prime = Parameter(torch.zeros(1, n_visible), requires_grad=True)
+        self.b_prime = Parameter(torch.zeros(1, d_in), requires_grad=True)
         self.sigmoid2 = torch.nn.Sigmoid()
 
-    def corrupt(self, X):
-        noise = torch.FloatTensor(np.random.binomial(1, 1.0 - self.corruption, size=X.data.size()))
-        return Variable(X.data.clone() * noise)
+    def corrupt(self, x):
+        noise = torch.FloatTensor(np.random.binomial(1, 1.0 - self.corruption, size=x.data.size()))
+        return Variable(x.data.clone() * noise)
 
     def encode(self, x):
         tilde_x = self.corrupt(x)
@@ -61,9 +61,9 @@ class Autoencoder(torch.nn.Module):
 
     def train_ae(self, train_X, optimizer, epochs, verbose=True):
         N = train_X.data.size()[0]
+        num_batches = N / self.batch_size
         for e in range(epochs):
             agg_cost = 0.
-            num_batches = N / self.batch_size
             for k in range(num_batches):
                 start, end = k * self.batch_size, (k + 1) * self.batch_size
                 bX = train_X[start:end]
