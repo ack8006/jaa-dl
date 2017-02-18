@@ -38,7 +38,9 @@ class Autoencoder(torch.nn.Module):
 
     def corrupt(self, x):
         noise = torch.FloatTensor(np.random.binomial(1, 1.0 - self.corruption, size=x.data.size()))
-        return Variable(x.data.clone() * noise)
+        result = x.clone()
+        result.data *= noise
+        return result
 
     def encode(self, x):
         tilde_x = self.corrupt(x)
@@ -56,7 +58,6 @@ class Autoencoder(torch.nn.Module):
 
     def forward(self, x):
         t = self.encode(x)
-        t = self.decode(t)
         return t
 
     def train_ae(self, train_X, optimizer, epochs, verbose=True):
@@ -69,6 +70,7 @@ class Autoencoder(torch.nn.Module):
                 bX = train_X[start:end]
                 optimizer.zero_grad()
                 Z = self.forward(bX)
+                Z = self.decode(Z)
                 loss = -torch.sum(bX * torch.log(Z) + (1.0 - bX) * torch.log(1.0 - Z), 1)
                 cost = torch.mean(loss)
                 cost.backward()
