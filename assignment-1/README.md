@@ -1,5 +1,7 @@
 ## TODO:
 
+- [ ] Check if the 3K labeled-training and 30K unlabeled-training contains the same distribution of digits.
+
 - [ ] Implement SWWAE.
 
 - [ ] Ensure that you give predictions for all the test cases because some cases might be missed due to batching. Pad with some dummy cases to avoid this.
