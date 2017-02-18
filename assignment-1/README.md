@@ -9,3 +9,17 @@
 - [x] Extend Denoising Autoencoder to Stacked Denoising Autoencoder.
 
 - [x] Add shuffling step in CNN training.
+
+- [ ] Implement Image Whitening
+    - http://ufldl.stanford.edu/tutorial/unsupervised/ExercisePCAWhitening/
+
+- [ ] Ladder Network
+
+- [ ] SdA Into Deep Conv Net
+
+
+
+## Random Alex Ideas
+- Variable Dropout Rates
+- Examine Model Prediction Confidence
+    - Consider additional actions on low confidence predictions
