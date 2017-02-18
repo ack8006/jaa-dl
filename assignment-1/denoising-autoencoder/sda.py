@@ -161,7 +161,7 @@ def main():
     teY_padded[:actual_size] = teY
 
     sda = SDA(d_input=784,
-              d_hidden_autoencoders=[500, 300, 200],
+              d_hidden_autoencoders=[1000, 1000, 1000],
               d_out=10,
               corruptions=[.1, .2, .3],
               batch_size=batch_size)
