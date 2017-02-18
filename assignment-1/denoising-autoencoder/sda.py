@@ -32,14 +32,16 @@ class SDA(torch.nn.Module):
         self.ft_reg = ft_reg
 
         # Create the Autoencoders
-        self.autoencoders = []
+        self.autoencoders_seq = torch.nn.Sequential()
+        self.autoencoders_ref = []
         for i, (d, c) in enumerate(zip(d_hidden_autoencoders, corruptions)):
             if i == 0:
                 curr_input = d_input
             else:
                 curr_input = d_hidden_autoencoders[i - 1]
             dna = ae.Autoencoder(curr_input, d, batch_size, corruption=c)
-            self.autoencoders.append(dna)
+            self.autoencoders_ref.append("autoencoder_" + str(i))
+            self.autoencoders_seq.add_module(self.autoencoders_ref[-1], dna)
 
         # Create the Logistic Layer
         self.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
@@ -52,14 +54,25 @@ class SDA(torch.nn.Module):
         n = x.data.size()[0]
         num_batches = n / self.batch_size
         t = x
-        for i, ae in enumerate(self.autoencoders):
+
+        # Pre-train 1 autoencoder at a time
+        for i, ae_re in enumerate(self.autoencoders_ref):
+            # Get the current autoencoder
+            ae = getattr(self.autoencoders_seq, ae_re)
+
+            # Getting encoded output from the previous autoencoder
             if i > 0:
+                # Set the requires_grad to False so that backprop doesn't
+                # travel all the way back to the previous autoencoder
                 temp = Variable(torch.FloatTensor(n, ae.d_in), requires_grad=False)
                 for k in range(num_batches):
                     start, end = k * self.batch_size, (k + 1) * self.batch_size
-                    temp.data[start:end] = self.autoencoders[i - 1].encode(t[start:end]).data
+                    prev_ae = getattr(self.autoencoders_seq, self.autoencoders_ref[i - 1])
+                    temp.data[start:end] = prev_ae.encode(t[start:end]).data
                 t = temp
             optimizer = SGD(ae.parameters(), lr=self.pre_lr)
+
+            # Pre-training
             print("Pre-training Autoencoder:", i)
             for ep in range(pt_epochs):
                 agg_cost = 0.
@@ -68,6 +81,7 @@ class SDA(torch.nn.Module):
                     bt = t[start:end]
                     optimizer.zero_grad()
                     z = ae.forward(bt)
+                    z = ae.decode(z)
                     loss = -torch.sum(bt * torch.log(z) + (1.0 - bt) * torch.log(1.0 - z), 1)
                     cost = torch.mean(loss)
                     cost.backward()
@@ -80,8 +94,10 @@ class SDA(torch.nn.Module):
     def forward(self, x):
         t = x
         # Forward through the Autoencoder
-        for ae in self.autoencoders:
+        for ae_re in self.autoencoders_ref:
+            ae = getattr(self.autoencoders_seq, ae_re)
             t = ae.encode(t)
+
         # Forward through the Logistic layer
         t = self.top_linear1.forward(t)
         t = self.top_softmax.forward(t)
@@ -95,6 +111,7 @@ class SDA(torch.nn.Module):
         num_batches_v = n_v / self.batch_size
         optimizer = SGD(self.parameters(), lr=self.ft_lr, weight_decay=self.ft_reg)
         loss = torch.nn.NLLLoss()
+
         for ef in range(ft_epochs):
             agg_cost = 0
             for k in range(num_batches):
@@ -109,6 +126,8 @@ class SDA(torch.nn.Module):
                 optimizer.step()
             agg_cost /= num_batches
             preds = np.zeros((n_v, self.d_out))
+
+            # Calculate accuracy on Validation set
             for k in range(num_batches_v):
                 start, end = k * self.batch_size, (k + 1) * self.batch_size
                 bX = valid_X[start:end]
@@ -120,12 +139,14 @@ class SDA(torch.nn.Module):
                 actual = actual.data.numpy()
                 if ind == actual:
                     correct += 1
+
             if verbose:
                 print("Fine-tuning Epoch:", ef, "Cost:", agg_cost.data[0],
                       "Validation Accuracy:", "{0:.4f}".format(correct / float(n_v)))
 
 
 def main():
+    # Load data
     trX, teX, trY, teY = convnet.load_mnist(onehot=False)
     trX = np.array([x.flatten() for x in trX])
     teX = np.array([x.flatten() for x in teX])
@@ -136,6 +157,7 @@ def main():
 
     batch_size = 64
 
+    # Pad the validation set
     actual_size = teX.size()[0]
     padded_size = (actual_size / batch_size + 1) * batch_size
     teX_padded = Variable(torch.FloatTensor(padded_size, teX.size()[1]))
@@ -149,7 +171,8 @@ def main():
               corruptions=[.1, .2, .3],
               batch_size=batch_size)
 
-    sda.pretrain(trX, pt_epochs=15)
+    sda.pretrain(trX, pt_epochs=1)
+
     sda.finetune(trX, trY, teX_padded, teY_padded,
                  valid_actual_size=actual_size, ft_epochs=36)
 
