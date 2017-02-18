@@ -31,8 +31,10 @@ class SDA(torch.nn.Module):
         self.ft_lr = ft_lr
         self.ft_reg = ft_reg
 
+        # Create one sequential module containing all autoencoders and logistic layer
+        self.sequential = torch.nn.Sequential()
+
         # Create the Autoencoders
-        self.autoencoders_seq = torch.nn.Sequential()
         self.autoencoders_ref = []
         for i, (d, c) in enumerate(zip(d_hidden_autoencoders, corruptions)):
             if i == 0:
@@ -41,14 +43,15 @@ class SDA(torch.nn.Module):
                 curr_input = d_hidden_autoencoders[i - 1]
             dna = ae.Autoencoder(curr_input, d, batch_size, corruption=c)
             self.autoencoders_ref.append("autoencoder_" + str(i))
-            self.autoencoders_seq.add_module(self.autoencoders_ref[-1], dna)
+            self.sequential.add_module(self.autoencoders_ref[-1], dna)
 
         # Create the Logistic Layer
-        self.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
-        self.top_linear1.weight.data.uniform_(-4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)),
+        self.sequential.add_module("top_linear1", torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True))
+        self.sequential.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
+        self.sequential.top_linear1.weight.data.uniform_(-4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)),
                                               4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)))
-        self.top_linear1.bias.data = torch.zeros(d_out)
-        self.top_softmax = torch.nn.Softmax()
+        self.sequential.top_linear1.bias.data = torch.zeros(d_out)
+        self.sequential.add_module("softmax", torch.nn.Softmax())
 
     def pretrain(self, x, pt_epochs, verbose=True):
         n = x.data.size()[0]
@@ -58,7 +61,7 @@ class SDA(torch.nn.Module):
         # Pre-train 1 autoencoder at a time
         for i, ae_re in enumerate(self.autoencoders_ref):
             # Get the current autoencoder
-            ae = getattr(self.autoencoders_seq, ae_re)
+            ae = getattr(self.sequential, ae_re)
 
             # Getting encoded output from the previous autoencoder
             if i > 0:
@@ -67,7 +70,7 @@ class SDA(torch.nn.Module):
                 temp = Variable(torch.FloatTensor(n, ae.d_in), requires_grad=False)
                 for k in range(num_batches):
                     start, end = k * self.batch_size, (k + 1) * self.batch_size
-                    prev_ae = getattr(self.autoencoders_seq, self.autoencoders_ref[i - 1])
+                    prev_ae = getattr(self.sequential, self.autoencoders_ref[i - 1])
                     temp.data[start:end] = prev_ae.encode(t[start:end]).data
                 t = temp
             optimizer = SGD(ae.parameters(), lr=self.pre_lr)
@@ -92,15 +95,7 @@ class SDA(torch.nn.Module):
                     print("Pre-training Autoencoder:", i, "Epoch:", ep, "Cost:", agg_cost.data[0])
 
     def forward(self, x):
-        t = x
-        # Forward through the Autoencoder
-        for ae_re in self.autoencoders_ref:
-            ae = getattr(self.autoencoders_seq, ae_re)
-            t = ae.encode(t)
-
-        # Forward through the Logistic layer
-        t = self.top_linear1.forward(t)
-        t = self.top_softmax.forward(t)
+        t = self.sequential.forward(x)
         return t
 
     def finetune(self, train_X, train_y, valid_X, valid_y,
@@ -166,12 +161,12 @@ def main():
     teY_padded[:actual_size] = teY
 
     sda = SDA(d_input=784,
-              d_hidden_autoencoders=[1000, 1000, 1000],
+              d_hidden_autoencoders=[500, 300, 200],
               d_out=10,
               corruptions=[.1, .2, .3],
               batch_size=batch_size)
 
-    sda.pretrain(trX, pt_epochs=1)
+    sda.pretrain(trX, pt_epochs=15)
 
     sda.finetune(trX, trY, teX_padded, teY_padded,
                  valid_actual_size=actual_size, ft_epochs=36)
