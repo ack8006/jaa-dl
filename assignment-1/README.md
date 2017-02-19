@@ -1,5 +1,7 @@
 ## TODO:
 
+- [ ] **Discuss and verify whether the batch gradient update implementation is correct.**
+
 - [ ] Check if the 3K labeled-training and 30K unlabeled-training contains the same distribution of digits.
 
 - [ ] Implement SWWAE.
