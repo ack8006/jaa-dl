@@ -96,27 +96,29 @@ class ConvNet(torch.nn.Module):
     def __init__(self, output_dim, dropout=0.5):
         super(ConvNet, self).__init__()
 
+#was 16,16,16,32,32,32
         self.conv = torch.nn.Sequential()
-        self.conv.add_module('conv_1', torch.nn.Conv2d(1,16, kernel_size=3, padding=1))
+        self.conv.add_module('conv_1', torch.nn.Conv2d(1,8, kernel_size=3, padding=1))
         self.conv.add_module("relu_1", torch.nn.ReLU())
-        self.conv.add_module('conv_2', torch.nn.Conv2d(16,16, kernel_size=3, padding=1))
+        self.conv.add_module('conv_2', torch.nn.Conv2d(8,8, kernel_size=3, padding=1))
         self.conv.add_module("relu_2", torch.nn.ReLU())
-        self.conv.add_module('conv_3', torch.nn.Conv2d(16,16, kernel_size=3, padding=1))
+        self.conv.add_module('conv_3', torch.nn.Conv2d(8,8, kernel_size=3, padding=1))
         self.conv.add_module("relu_3", torch.nn.ReLU())
         self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
-        self.conv.add_module('conv_4', torch.nn.Conv2d(16,32, kernel_size=3, padding=1))
+        self.conv.add_module('conv_4', torch.nn.Conv2d(8,16, kernel_size=3, padding=1))
         self.conv.add_module("relu_4", torch.nn.ReLU())
-        self.conv.add_module('conv_5', torch.nn.Conv2d(32,32, kernel_size=3, padding=1))
+        self.conv.add_module('conv_5', torch.nn.Conv2d(16,16, kernel_size=3, padding=1))
         self.conv.add_module("relu_5", torch.nn.ReLU())
-        self.conv.add_module('conv_6', torch.nn.Conv2d(32,32, kernel_size=3, padding=1))
+        self.conv.add_module('conv_6', torch.nn.Conv2d(16,16, kernel_size=3, padding=1))
         self.conv.add_module("relu_6", torch.nn.ReLU())
         self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
 
         self.fc = torch.nn.Sequential()
-        self.fc.add_module("fc1", torch.nn.Linear(1568, 512))
+        #self.fc.add_module("fc1", torch.nn.Linear(1568, 512))
+        self.fc.add_module("fc1", torch.nn.Linear(784, 256))
         self.fc.add_module("relu_7", torch.nn.ReLU())
         self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout))
-        self.fc.add_module("fc2", torch.nn.Linear(512, 64))
+        self.fc.add_module("fc2", torch.nn.Linear(256, 64))
         self.fc.add_module("relu_8", torch.nn.ReLU())
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
@@ -126,7 +128,8 @@ class ConvNet(torch.nn.Module):
 
     def forward(self, x):
         x = self.conv.forward(x)
-        x = x.view(-1, 1568)
+        #x = x.view(-1, 784)
+        x = x.view(-1, 784)
         return self.fc.forward(x)
 
 
