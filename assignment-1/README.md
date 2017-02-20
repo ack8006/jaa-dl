@@ -29,6 +29,14 @@
 
 - Examine Model Prediction Confidence
     - Consider additional actions on low confidence predictions
+
+## YASU ADVICE
+Not sure it works on MNist since black/white
+Step 1: patch unlabeled images
+Patch size is same as filters in the first layer of your network
+Step 2: run kmeans on the patches
+K is the number of filters in your first layer
+Step 3: take centroids out
     
 ## References
 
