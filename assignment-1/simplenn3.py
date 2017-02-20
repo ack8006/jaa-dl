@@ -13,9 +13,9 @@ import numpy as np
 use_cuda = False
 momentum_par = 0.5
 lr = 0.01
-log_interval = 27000
+log_interval = 5400
 epochs = 1000
-batch_size = 10
+batch_size = 64
 
 
 loader_kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
@@ -40,7 +40,7 @@ train_loader = DataLoader(TensorDataset(train_data, train_label),
                             batch_size = batch_size,
                             shuffle=True)
 valid_loader = DataLoader(TensorDataset(valid_data, valid_label),
-                            batch_size = batch_size,
+                            batch_size = 1,
                             shuffle=True)
 
 # network given in assignment
@@ -69,6 +69,12 @@ if use_cuda:
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum_par)
+# optimizer = optim.Adam(model.parameters())
+# optimizer = optim.Adam(model.parameters(), lr = 0.0001)
+# optimizer = optim.Adagrad(model.parameters())
+# optimizer = optim.Adadelta(model.parameters())
+
+
 
 def predict(model, x_val):
     x = Variable(x_val, requires_grad=False)
@@ -92,6 +98,7 @@ def train(epoch):
         #         100. * batch_idx / len(train_loader), loss.data[0]))
 
 
+
 def test(epoch, valid_loader):
     model.eval()
     test_loss = 0
@@ -106,17 +113,39 @@ def test(epoch, valid_loader):
         correct += pred.eq(target.data).cpu().sum()
 
     test_loss /= len(valid_loader) # loss function already averages over batch size
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
         test_loss, correct, len(valid_loader.dataset),
         100. * correct / len(valid_loader.dataset)))
 
-for epoch in xrange(0, epochs):
+for epoch in range(1, epochs + 1):
     train(epoch)
-    # test(epoch, valid_loader)
-    predY = predict(model, valid_data)
-    pred_train_y = predict(model, train_data)
-    print("Epoch %d, train_acc = %.2f%% val_acc = %.2f%%"
-          % (epoch + 1, 
-            # cost / (n_examples/batch_size), 
-            100. * np.mean(pred_train_y == train_label.numpy()),
-            100. * np.mean(predY == valid_label.numpy())))
+    test(epoch, valid_loader)
+
+# def test(epoch, valid_loader):
+#     model.eval()
+#     test_loss = 0
+#     correct = 0
+#     for data, target in valid_loader:
+#         if use_cuda:
+#             data, target = data.cuda(), target.cuda()
+#         data, target = Variable(data, volatile=True), Variable(target[:,0])
+#         output = model(data)
+#         test_loss += F.nll_loss(output, target).data[0]
+#         pred = output.data.max(1)[1] # get the index of the max log-probability
+#         correct += pred.eq(target.data).cpu().sum()
+
+#     test_loss /= len(valid_loader) # loss function already averages over batch size
+#     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+#         test_loss, correct, len(valid_loader.dataset),
+#         100. * correct / len(valid_loader.dataset)))
+
+# for epoch in xrange(0, epochs):
+#     train(epoch)
+#     # test(epoch, valid_loader)
+#     predY = predict(model, valid_data)
+#     pred_train_y = predict(model, train_data)
+#     print("Epoch %d, train_acc = %.2f%% val_acc = %.2f%%"
+#           % (epoch + 1, 
+#             # cost / (n_examples/batch_size), 
+#             100. * np.mean(pred_train_y == train_label.numpy()),
+#             100. * np.mean(predY == valid_label.numpy())))
