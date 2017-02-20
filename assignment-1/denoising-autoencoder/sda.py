@@ -48,6 +48,7 @@ class SDA(torch.nn.Module):
         # Create the Logistic Layer
         self.sequential.add_module("top_linear1", torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True))
         self.sequential.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
+        # TODO: initialize the weights with 0
         self.sequential.top_linear1.weight.data.uniform_(-4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)),
                                               4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)))
         self.sequential.top_linear1.bias.data = torch.zeros(d_out)
@@ -71,7 +72,7 @@ class SDA(torch.nn.Module):
                 for k in range(num_batches):
                     start, end = k * self.batch_size, (k + 1) * self.batch_size
                     prev_ae = getattr(self.sequential, self.autoencoders_ref[i - 1])
-                    temp.data[start:end] = prev_ae.encode(t[start:end]).data
+                    temp.data[start:end] = prev_ae.encode(t[start:end], add_noise=False).data
                 t = temp
             optimizer = SGD(ae.parameters(), lr=self.pre_lr)
 
@@ -83,7 +84,7 @@ class SDA(torch.nn.Module):
                     start, end = k * self.batch_size, (k + 1) * self.batch_size
                     bt = t[start:end]
                     optimizer.zero_grad()
-                    z = ae.forward(bt)
+                    z = ae.encode(bt, add_noise=True)
                     z = ae.decode(z)
                     loss = -torch.sum(bt * torch.log(z) + (1.0 - bt) * torch.log(1.0 - z), 1)
                     cost = torch.mean(loss)

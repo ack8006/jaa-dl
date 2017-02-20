@@ -42,8 +42,11 @@ class Autoencoder(torch.nn.Module):
         result.data *= noise
         return result
 
-    def encode(self, x):
-        tilde_x = self.corrupt(x)
+    def encode(self, x, add_noise=False):
+        if add_noise:
+            tilde_x = self.corrupt(x)
+        else:
+            tilde_x = x.clone()
         ones = Parameter(torch.ones(self.batch_size, 1))
         t = tilde_x.mm(self.W)
         t = t + ones.mm(self.b)
