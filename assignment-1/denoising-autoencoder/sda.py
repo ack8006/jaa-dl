@@ -48,9 +48,7 @@ class SDA(torch.nn.Module):
         # Create the Logistic Layer
         self.sequential.add_module("top_linear1", torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True))
         self.sequential.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
-        # TODO: initialize the weights with 0
-        self.sequential.top_linear1.weight.data.uniform_(-4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)),
-                                              4. * np.sqrt(6. / (d_hidden_autoencoders[-1] + d_out)))
+        self.sequential.top_linear1.weight.data = torch.zeros(self.sequential.top_linear1.weight.data.size())
         self.sequential.top_linear1.bias.data = torch.zeros(d_out)
         self.sequential.add_module("softmax", torch.nn.Softmax())
 
