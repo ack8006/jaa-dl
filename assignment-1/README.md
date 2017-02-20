@@ -1,12 +1,12 @@
 ## TODO:
 
-- [ ] **Discuss and verify whether the batch gradient update implementation is correct.**
+- [ ] Test the current reference implementation of Ladder networks. Test it's performance on our given dataset. (@Abhishek)
 
-- [ ] Check if the 3K labeled-training and 30K unlabeled-training contains the same distribution of digits.
+- [ ] Ladder Network
 
-- [ ] Implement SWWAE.
+- [x] Check if the 3K labeled-training and 30K unlabeled-training contains the same distribution of digits.
 
-- [ ] Ensure that you give predictions for all the test cases because some cases might be missed due to batching. Pad with some dummy cases to avoid this.
+- [x] Ensure that you give predictions for all the test cases because some cases might be missed due to batching. Pad with some dummy cases to avoid this.
 
 - [ ] Check if the labels are correct for the corresponding images.
 
@@ -16,12 +16,16 @@
 
 - [ ] Implement Image Whitening
     - http://ufldl.stanford.edu/tutorial/unsupervised/ExercisePCAWhitening/
-
-- [ ] Ladder Network
+    
+- [ ] **Discuss and verify whether the batch gradient update implementation is correct.**
 
 - [ ] SdA Into Deep Conv Net
 
+- [ ] Implement SWWAE.
 
+## Abhishek notes
+
+Implementing the algorithms from papers is not straightforward. **Implement the algorithms in a stepwise manner and always test and compare with the reference implementations.**
 
 ## Random Alex Ideas
 
