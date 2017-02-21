@@ -1,3 +1,98 @@
+Downloading data from http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz
+... loading data
+... building the model
+... getting the pretraining functions
+... pre-training the model
+Pre-training layer 0, epoch 0, cost 71.672719
+Pre-training layer 0, epoch 1, cost 63.665404
+Pre-training layer 0, epoch 2, cost 62.280122
+Pre-training layer 0, epoch 3, cost 61.622745
+Pre-training layer 0, epoch 4, cost 61.182972
+Pre-training layer 0, epoch 5, cost 60.856948
+Pre-training layer 0, epoch 6, cost 60.626252
+Pre-training layer 0, epoch 7, cost 60.399883
+Pre-training layer 0, epoch 8, cost 60.222722
+Pre-training layer 0, epoch 9, cost 60.048261
+Pre-training layer 0, epoch 10, cost 59.871532
+Pre-training layer 0, epoch 11, cost 59.734391
+Pre-training layer 0, epoch 12, cost 59.608504
+Pre-training layer 0, epoch 13, cost 59.447432
+Pre-training layer 0, epoch 14, cost 59.338282
+Pre-training layer 1, epoch 0, cost 482.729959
+Pre-training layer 1, epoch 1, cost 465.493414
+Pre-training layer 1, epoch 2, cost 462.077090
+Pre-training layer 1, epoch 3, cost 460.156199
+Pre-training layer 1, epoch 4, cost 458.778700
+Pre-training layer 1, epoch 5, cost 457.622241
+Pre-training layer 1, epoch 6, cost 456.656852
+Pre-training layer 1, epoch 7, cost 455.817817
+Pre-training layer 1, epoch 8, cost 455.059205
+Pre-training layer 1, epoch 9, cost 454.406323
+Pre-training layer 1, epoch 10, cost 453.816540
+Pre-training layer 1, epoch 11, cost 453.291453
+Pre-training layer 1, epoch 12, cost 452.833187
+Pre-training layer 1, epoch 13, cost 452.423723
+Pre-training layer 1, epoch 14, cost 452.053363
+Pre-training layer 2, epoch 0, cost 195.190891
+Pre-training layer 2, epoch 1, cost 182.684415
+Pre-training layer 2, epoch 2, cost 180.472726
+Pre-training layer 2, epoch 3, cost 179.308533
+Pre-training layer 2, epoch 4, cost 178.495271
+Pre-training layer 2, epoch 5, cost 177.888773
+Pre-training layer 2, epoch 6, cost 177.357733
+Pre-training layer 2, epoch 7, cost 176.944948
+Pre-training layer 2, epoch 8, cost 176.535457
+Pre-training layer 2, epoch 9, cost 176.262936
+Pre-training layer 2, epoch 10, cost 175.952848
+Pre-training layer 2, epoch 11, cost 175.749146
+Pre-training layer 2, epoch 12, cost 175.487982
+Pre-training layer 2, epoch 13, cost 175.297743
+Pre-training layer 2, epoch 14, cost 175.113949
+... getting the finetuning functions
+... finetunning the model
+epoch 1, minibatch 50000/50000, validation error 5.110000 %
+     epoch 1, minibatch 50000/50000, test error of best model 5.360000 %
+epoch 2, minibatch 50000/50000, validation error 3.060000 %
+     epoch 2, minibatch 50000/50000, test error of best model 3.490000 %
+epoch 3, minibatch 50000/50000, validation error 2.860000 %
+     epoch 3, minibatch 50000/50000, test error of best model 2.780000 %
+epoch 4, minibatch 50000/50000, validation error 2.250000 %
+     epoch 4, minibatch 50000/50000, test error of best model 2.250000 %
+epoch 5, minibatch 50000/50000, validation error 3.200000 %
+epoch 6, minibatch 50000/50000, validation error 2.000000 %
+     epoch 6, minibatch 50000/50000, test error of best model 2.110000 %
+epoch 7, minibatch 50000/50000, validation error 2.100000 %
+epoch 8, minibatch 50000/50000, validation error 2.010000 %
+epoch 9, minibatch 50000/50000, validation error 1.850000 %
+     epoch 9, minibatch 50000/50000, test error of best model 1.990000 %
+epoch 10, minibatch 50000/50000, validation error 1.860000 %
+epoch 11, minibatch 50000/50000, validation error 1.830000 %
+     epoch 11, minibatch 50000/50000, test error of best model 1.650000 %
+epoch 12, minibatch 50000/50000, validation error 1.630000 %
+     epoch 12, minibatch 50000/50000, test error of best model 1.580000 %
+epoch 13, minibatch 50000/50000, validation error 1.620000 %
+     epoch 13, minibatch 50000/50000, test error of best model 1.560000 %
+epoch 14, minibatch 50000/50000, validation error 1.680000 %
+epoch 15, minibatch 50000/50000, validation error 1.440000 %
+     epoch 15, minibatch 50000/50000, test error of best model 1.590000 %
+epoch 16, minibatch 50000/50000, validation error 1.610000 %
+epoch 17, minibatch 50000/50000, validation error 1.650000 %
+epoch 18, minibatch 50000/50000, validation error 1.490000 %
+epoch 19, minibatch 50000/50000, validation error 1.360000 %
+     epoch 19, minibatch 50000/50000, test error of best model 1.500000 %
+epoch 20, minibatch 50000/50000, validation error 1.460000 %
+epoch 21, minibatch 50000/50000, validation error 1.420000 %
+epoch 22, minibatch 50000/50000, validation error 1.350000 %
+     epoch 22, minibatch 50000/50000, test error of best model 1.510000 %
+epoch 23, minibatch 50000/50000, validation error 1.390000 %
+epoch 24, minibatch 50000/50000, validation error 1.410000 %
+epoch 25, minibatch 50000/50000, validation error 1.400000 %
+epoch 26, minibatch 50000/50000, validation error 1.380000 %
+epoch 27, minibatch 50000/50000, validation error 1.380000 %
+epoch 28, minibatch 50000/50000, validation error 1.370000 %
+epoch 29, minibatch 50000/50000, validation error 1.360000 %
+epoch 30, minibatch 50000/50000, validation error 1.360000 %
+epoch 31, minibatch 50000/50000, validation error 1.350000 %
 epoch 32, minibatch 50000/50000, validation error 1.340000 %
      epoch 32, minibatch 50000/50000, test error of best model 1.370000 %
 epoch 33, minibatch 50000/50000, validation error 1.330000 %
