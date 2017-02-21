@@ -94,7 +94,8 @@ class MLP(torch.nn.Module):
 
 
 def main():
-    BATCH_SIZE = 32
+    # minibatch size of 100 reported in the Ladder paper.
+    BATCH_SIZE = 100
 
     torch.manual_seed(42)
 
