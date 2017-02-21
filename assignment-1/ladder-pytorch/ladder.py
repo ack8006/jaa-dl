@@ -40,6 +40,7 @@ class MLP(torch.nn.Module):
         self.encoders[n_layers].add_module('relu_{}', ReLU())
 
 #***This may have to be it's own sequential...unsure
+        # TODO: Use LogSoftmax because we have to use Negative Log Likelihood
         self.encoders[n_layers].add_module('softmax', Softmax())
 
 #***Need decoder layers here
@@ -59,6 +60,7 @@ class MLP(torch.nn.Module):
     #Generates Gaussian Noise and add to variable x
     #*** paper recommends batch mean and batch stdev, but not sure what that means
     # Data is 0-1, what happens when subtract from 0 pixel?
+    # TODO: Add batch normalization. Related to the statement above.
     def noiseify(x, noise_level = 0.1):
         noise = Variable(torch.normal(means= torch.zeros(x.size()),
                                       std = noise_level))
