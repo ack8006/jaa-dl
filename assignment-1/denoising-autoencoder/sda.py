@@ -50,7 +50,7 @@ class SDA(torch.nn.Module):
         self.sequential.top_linear1 = torch.nn.Linear(d_hidden_autoencoders[-1], d_out, bias=True)
         self.sequential.top_linear1.weight.data = torch.zeros(self.sequential.top_linear1.weight.data.size())
         self.sequential.top_linear1.bias.data = torch.zeros(d_out)
-        self.sequential.add_module("softmax", torch.nn.Softmax())
+        self.sequential.add_module("softmax", torch.nn.LogSoftmax())
 
     def pretrain(self, x, pt_epochs, verbose=True):
         n = x.data.size()[0]
@@ -136,7 +136,7 @@ class SDA(torch.nn.Module):
 
             if verbose:
                 print("Fine-tuning Epoch:", ef, "Cost:", agg_cost.data[0],
-                      "Validation Accuracy:", "{0:.4f}".format(correct / float(n_v)))
+                      "Validation Accuracy:", "{0:.4f}".format(correct / float(valid_actual_size)))
 
 
 def main():
