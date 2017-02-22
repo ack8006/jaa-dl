@@ -1,0 +1,98 @@
+Pre-training Autoencoder: 0
+Pre-training Autoencoder: 0 Epoch: 0 Cost: 69.6642608643
+Pre-training Autoencoder: 0 Epoch: 1 Cost: 62.2405433655
+Pre-training Autoencoder: 0 Epoch: 2 Cost: 60.9876174927
+Pre-training Autoencoder: 0 Epoch: 3 Cost: 60.3698158264
+Pre-training Autoencoder: 0 Epoch: 4 Cost: 59.9580764771
+Pre-training Autoencoder: 0 Epoch: 5 Cost: 59.6633338928
+Pre-training Autoencoder: 0 Epoch: 6 Cost: 59.3997764587
+Pre-training Autoencoder: 0 Epoch: 7 Cost: 59.2234382629
+Pre-training Autoencoder: 0 Epoch: 8 Cost: 59.0015525818
+Pre-training Autoencoder: 0 Epoch: 9 Cost: 58.8429679871
+Pre-training Autoencoder: 0 Epoch: 10 Cost: 58.6874732971
+Pre-training Autoencoder: 0 Epoch: 11 Cost: 58.530254364
+Pre-training Autoencoder: 0 Epoch: 12 Cost: 58.3502006531
+Pre-training Autoencoder: 0 Epoch: 13 Cost: 58.2227897644
+Pre-training Autoencoder: 0 Epoch: 14 Cost: 58.1049690247
+Pre-training Autoencoder: 1
+Pre-training Autoencoder: 1 Epoch: 0 Cost: 480.041473389
+Pre-training Autoencoder: 1 Epoch: 1 Cost: 463.884033203
+Pre-training Autoencoder: 1 Epoch: 2 Cost: 460.561126709
+Pre-training Autoencoder: 1 Epoch: 3 Cost: 458.630218506
+Pre-training Autoencoder: 1 Epoch: 4 Cost: 457.127532959
+Pre-training Autoencoder: 1 Epoch: 5 Cost: 455.910125732
+Pre-training Autoencoder: 1 Epoch: 6 Cost: 454.862335205
+Pre-training Autoencoder: 1 Epoch: 7 Cost: 453.982391357
+Pre-training Autoencoder: 1 Epoch: 8 Cost: 453.220611572
+Pre-training Autoencoder: 1 Epoch: 9 Cost: 452.536346436
+Pre-training Autoencoder: 1 Epoch: 10 Cost: 451.980072021
+Pre-training Autoencoder: 1 Epoch: 11 Cost: 451.499237061
+Pre-training Autoencoder: 1 Epoch: 12 Cost: 451.081298828
+Pre-training Autoencoder: 1 Epoch: 13 Cost: 450.706787109
+Pre-training Autoencoder: 1 Epoch: 14 Cost: 450.380462646
+Pre-training Autoencoder: 2
+Pre-training Autoencoder: 2 Epoch: 0 Cost: 186.151504517
+Pre-training Autoencoder: 2 Epoch: 1 Cost: 174.741714478
+Pre-training Autoencoder: 2 Epoch: 2 Cost: 172.666656494
+Pre-training Autoencoder: 2 Epoch: 3 Cost: 171.536422729
+Pre-training Autoencoder: 2 Epoch: 4 Cost: 170.66305542
+Pre-training Autoencoder: 2 Epoch: 5 Cost: 170.022781372
+Pre-training Autoencoder: 2 Epoch: 6 Cost: 169.481872559
+Pre-training Autoencoder: 2 Epoch: 7 Cost: 169.026260376
+Pre-training Autoencoder: 2 Epoch: 8 Cost: 168.638534546
+Pre-training Autoencoder: 2 Epoch: 9 Cost: 168.327026367
+Pre-training Autoencoder: 2 Epoch: 10 Cost: 168.028823853
+Pre-training Autoencoder: 2 Epoch: 11 Cost: 167.786209106
+Pre-training Autoencoder: 2 Epoch: 12 Cost: 167.570251465
+Pre-training Autoencoder: 2 Epoch: 13 Cost: 167.37411499
+Pre-training Autoencoder: 2 Epoch: 14 Cost: 167.210800171
+Not regularizing Fine-tuning Epoch: 0 Cost: 0.1827545017 Validation Accuracy: 0.9652
+Not regularizing Fine-tuning Epoch: 1 Cost: 0.0762616321445 Validation Accuracy: 0.9708
+Not regularizing Fine-tuning Epoch: 2 Cost: 0.0479153655469 Validation Accuracy: 0.9740
+Not regularizing Fine-tuning Epoch: 3 Cost: 0.034898608923 Validation Accuracy: 0.9799
+Not regularizing Fine-tuning Epoch: 4 Cost: 0.0242173243314 Validation Accuracy: 0.9785
+Not regularizing Fine-tuning Epoch: 5 Cost: 0.0190588906407 Validation Accuracy: 0.9818
+Not regularizing Fine-tuning Epoch: 6 Cost: 0.0139048760757 Validation Accuracy: 0.9775
+Not regularizing Fine-tuning Epoch: 7 Cost: 0.0127523485571 Validation Accuracy: 0.9770
+Not regularizing Fine-tuning Epoch: 8 Cost: 0.00969425123185 Validation Accuracy: 0.9817
+Not regularizing Fine-tuning Epoch: 9 Cost: 0.00889867264777 Validation Accuracy: 0.9801
+Not regularizing Fine-tuning Epoch: 10 Cost: 0.00861041340977 Validation Accuracy: 0.9798
+Not regularizing Fine-tuning Epoch: 11 Cost: 0.00691153528169 Validation Accuracy: 0.9845
+Not regularizing Fine-tuning Epoch: 12 Cost: 0.00731216929853 Validation Accuracy: 0.9829
+Not regularizing Fine-tuning Epoch: 13 Cost: 0.00568318646401 Validation Accuracy: 0.9812
+Not regularizing Fine-tuning Epoch: 14 Cost: 0.00299658300355 Validation Accuracy: 0.9856
+Not regularizing Fine-tuning Epoch: 15 Cost: 0.0029124089051 Validation Accuracy: 0.9848
+Not regularizing Fine-tuning Epoch: 16 Cost: 0.00254159164615 Validation Accuracy: 0.9835
+Not regularizing Fine-tuning Epoch: 17 Cost: 0.0033569491934 Validation Accuracy: 0.9833
+Not regularizing Fine-tuning Epoch: 18 Cost: 0.0020564480219 Validation Accuracy: 0.9849
+Not regularizing Fine-tuning Epoch: 19 Cost: 0.000771947437897 Validation Accuracy: 0.9858
+Not regularizing Fine-tuning Epoch: 20 Cost: 0.000247098796535 Validation Accuracy: 0.9872
+Not regularizing Fine-tuning Epoch: 21 Cost: 5.49300239072e-05 Validation Accuracy: 0.9872
+Not regularizing Fine-tuning Epoch: 22 Cost: 3.71983478544e-05 Validation Accuracy: 0.9870
+Not regularizing Fine-tuning Epoch: 23 Cost: 3.14848148264e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 24 Cost: 2.77796389128e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 25 Cost: 2.50804441748e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 26 Cost: 2.29872966884e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 27 Cost: 2.12980376091e-05 Validation Accuracy: 0.9867
+Not regularizing Fine-tuning Epoch: 28 Cost: 1.98955422093e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 29 Cost: 1.87061323231e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 30 Cost: 1.76806770469e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 31 Cost: 1.67846646946e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 32 Cost: 1.59930150403e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 33 Cost: 1.52870998136e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 34 Cost: 1.46526217577e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 35 Cost: 1.40785105032e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 36 Cost: 1.35558921102e-05 Validation Accuracy: 0.9867
+Not regularizing Fine-tuning Epoch: 37 Cost: 1.30775697471e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 38 Cost: 1.26377281049e-05 Validation Accuracy: 0.9868
+Not regularizing Fine-tuning Epoch: 39 Cost: 1.22316814668e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 40 Cost: 1.18553489301e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 41 Cost: 1.15053626359e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 42 Cost: 1.11788513095e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 43 Cost: 1.0873379324e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 44 Cost: 1.05868421088e-05 Validation Accuracy: 0.9869
+Not regularizing Fine-tuning Epoch: 45 Cost: 1.0317372471e-05 Validation Accuracy: 0.9871
+Not regularizing Fine-tuning Epoch: 46 Cost: 1.0063490663e-05 Validation Accuracy: 0.9871
+Not regularizing Fine-tuning Epoch: 47 Cost: 9.82369147096e-06 Validation Accuracy: 0.9871
+Not regularizing Fine-tuning Epoch: 48 Cost: 9.59684348345e-06 Validation Accuracy: 0.9871
+Not regularizing Fine-tuning Epoch: 49 Cost: 9.38178527576e-06 Validation Accuracy: 0.9871
