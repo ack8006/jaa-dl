@@ -25,21 +25,21 @@ class MLP(torch.nn.Module):
         for i in xrange(n_layers - 1):
             self.encoders[i] = Sequential()
             self.encoders[i].add_module('l_{}'.format(i), Linear(self.ls[i], self.ls[i+1]))
-#*** eps, momentum are default nonzero, torch imp sets both to 0
-#*** affine default to true giving learnable params, torch imp sets to false
+        #*** eps, momentum are default nonzero, torch imp sets both to 0
+        #*** affine default to true giving learnable params, torch imp sets to false
             #self.encoders[i].add_module('bn_{}'.format(i), BatchNorm1d(self.ls[i+1], ))
             self.encoders[i].add_module('bn_{}'.format(i), BatchNorm1d(self.ls[i+1], 0.0, 0.0, False))
             self.encoders[i].add_module('relu_{}'.format(i), ReLU())
 
         self.encoders[n_layers] = Sequential()
         self.encoders[n_layers].add_module('l_n', Linear(self.ls[n_layers], output_dim))
-#*** eps, momentum are default nonzero, torch imp doesn't set to 0 in last layer
-#*** affine default to true giving learnable params, torch imp  leaves it as true
+    #*** eps, momentum are default nonzero, torch imp doesn't set to 0 in last layer
+    #*** affine default to true giving learnable params, torch imp  leaves it as true
         #self.encoders[n_layers].add_module('bn_n', BatchNorm1d(output_dim))
         self.encoders[n_layers].add_module('bn_n', BatchNorm1d(output_dim, 0.0, 0.0, False))
         self.encoders[n_layers].add_module('relu_{}', ReLU())
 
-#***This may have to be it's own sequential...unsure
+    #***This may have to be it's own sequential...unsure
         # TODO: Use LogSoftmax because we have to use Negative Log Likelihood
         self.encoders[n_layers].add_module('softmax', Softmax())
 
@@ -62,9 +62,8 @@ class MLP(torch.nn.Module):
     # Data is 0-1, what happens when subtract from 0 pixel?
     # TODO: Add batch normalization. Related to the statement above.
     def noiseify(x, noise_level = 0.1):
-        noise = Variable(torch.normal(means= torch.zeros(x.size()),
-                                      std = noise_level))
-        return torch.add(x, noise)
+        noise = torch.normal(means=torch.zeros(x.size()), std = noise_level)
+        return torch.add(x.data, noise)
 
     def encode(self, x, noisey=False):
         #Multiple encoders for adding noise
@@ -84,13 +83,6 @@ class MLP(torch.nn.Module):
     def decode(self, x):
         pass
 
-#*** What is the mean of? z?
-    #Get z_hat
-    #Implementation of Function 1
-    def denoising(self, z_til, z_var, n_var, mean):
-        v = z_var / (z_var + n_var)
-        z_hat = (z_til - mean) * v + mean
-        return z_hat
 
 
 def main():
@@ -100,19 +92,19 @@ def main():
     torch.manual_seed(42)
 
     train_labeled = pickle.load(open("data/train_labeled.p", "rb"))
-    train_unlabeled = pickle.load(open("data/train_unlabeled.p", "rb"))
-    valid = pickle.load(open("data/validation.p", "rb"))
+    #train_unlabeled = pickle.load(open("data/train_unlabeled.p", "rb"))
+    #valid = pickle.load(open("data/validation.p", "rb"))
 
     train_lab_loader = torch.utils.data.DataLoader(trainset_labeled,
                                                batch_size=BATCH_SIZE,
                                                shuffle=True)
     #Look at Piazza for handling missing labels
-    train_unlab_loader = torch.utils.data.DataLoader(train_unlabeled,
-                                               batch_size=BATCH_SIZE,
-                                               shuffle=True)
-    valid_loader = torch.utils.data.DataLoader(validset, 
-                                               batch_size=BATCH_SIZE,
-                                               shuffle=True)
+    #train_unlab_loader = torch.utils.data.DataLoader(train_unlabeled,
+    #                                           batch_size=BATCH_SIZE,
+    #                                           shuffle=True)
+    #valid_loader = torch.utils.data.DataLoader(validset, 
+    #                                           batch_size=BATCH_SIZE,
+    #                                           shuffle=True)
 
 
 if __name__ == '__main__':
