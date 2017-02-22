@@ -20,7 +20,7 @@ class SDA(torch.nn.Module):
                http://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf
     """
     def __init__(self, d_input, d_hidden_autoencoders, d_out,
-                 corruptions, batch_size, pre_lr=0.001, ft_lr=0.1, ft_reg=0.0001):
+                 corruptions, batch_size, pre_lr=0.001, ft_lr=0.1):
         super(SDA, self).__init__()
         self.d_input = d_input
         self.d_hidden_autoencoders = list(d_hidden_autoencoders)
@@ -29,7 +29,6 @@ class SDA(torch.nn.Module):
         self.batch_size = batch_size
         self.pre_lr = pre_lr
         self.ft_lr = ft_lr
-        self.ft_reg = ft_reg
 
         # Create one sequential module containing all autoencoders and logistic layer
         self.sequential = torch.nn.Sequential()
@@ -103,7 +102,7 @@ class SDA(torch.nn.Module):
         num_batches = n / self.batch_size
         n_v = valid_X.data.size()[0]
         num_batches_v = n_v / self.batch_size
-        optimizer = SGD(self.parameters(), lr=self.ft_lr, weight_decay=self.ft_reg)
+        optimizer = SGD(self.parameters(), lr=self.ft_lr)
         loss = torch.nn.NLLLoss()
 
         for ef in range(ft_epochs):
