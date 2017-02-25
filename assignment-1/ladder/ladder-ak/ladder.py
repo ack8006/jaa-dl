@@ -69,9 +69,8 @@ class StackedEncoders(torch.nn.Module):
     def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases, add_noise):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
-        self.sequential = torch.nn.Sequential()
+        self.encoders = torch.nn.Sequential()
         n_encoders = len(d_encoders)
-
         for i in range(n_encoders):
             if i == 0:
                 d_input = d_in
@@ -81,13 +80,18 @@ class StackedEncoders(torch.nn.Module):
             activation = activation_types[i]
             train_batch_norm = train_batch_norms[i]
             bias = biases[i]
-            encoder_ref = "encoder-" + str(i)
+            encoder_ref = "encoder_" + str(i)
             encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias, add_noise=add_noise)
             self.encoders_ref.append(encoder_ref)
-            self.sequential.add_module(encoder_ref, encoder)
+            self.encoders.add_module(encoder_ref, encoder)
+
 
     def forward(self, x):
-        return self.sequential.forward(x)
+        h = x
+        for e_ref in enumerate(self.encoders_ref):
+            encoder = getattr(self.encoders, e_ref)
+            h = encoder.forward(h)
+        return h
 
 
 def main():
@@ -103,9 +107,9 @@ def main():
     print("=====================")
     print("BATCH SIZE:", batch_size)
     print("EPOCHS:", epochs)
-    print("=====================")
+    print("=====================\n")
 
-    print("===  Loading Data ===")
+    print("======  Loading Data ======")
     with open("../../data/train_labeled.p") as f:
         train_dataset = pickle.load(f)
     with open("../../data/validation.p") as f:
@@ -128,6 +132,10 @@ def main():
 
     optimizer = Adam(se.parameters(), lr=0.002)
     loss = torch.nn.NLLLoss()
+
+    print("")
+    print("=====================")
+    print("TRAINING")
 
     for e in range(epochs):
         agg_cost = 0.
@@ -159,6 +167,8 @@ def main():
             correct += np.sum(target == preds)
             total += target.shape[0]
         print("Epoch:", e + 1, "Cost:", agg_cost, "Validation Accuracy:", correct / total)
+
+    print("=====================\n")
 
     print("Done :)")
 
