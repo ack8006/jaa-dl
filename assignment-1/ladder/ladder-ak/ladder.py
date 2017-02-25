@@ -33,8 +33,9 @@ class Encoder(torch.nn.Module):
         # Batch Normalization
         # For Relu Beta, Gamma of batch-norm are redundant, hence not trained
         # For Softmax Beta, Gamma are trained
-        self.batch_norm_no_noise = torch.nn.BatchNorm1d(d_out, affine=False)
-        self.batch_norm = torch.nn.BatchNorm1d(d_out, affine=train_batch_norm)
+        self.gamma = None
+        self.beta = None
+        raise NotImplementedError
 
         # Activation
         if activation_type == 'relu':
@@ -44,22 +45,28 @@ class Encoder(torch.nn.Module):
         elif activation_type == 'softmax':
             self.activation = torch.nn.Softmax()
 
+    def batch_normalize(self, x):
+        raise NotImplementedError
+
+    def bn_gamma_beta(self, x):
+        raise NotImplementedError
+
     def forward_clean(self, h):
         t = self.linear(h)
-        z = self.batch_norm(t)
+        z = self.batch_normalize(t)
+        z = self.bn_gamma_beta(z)
         h = self.activation(z)
         return h
 
     def forward_noise(self, tilde_h):
-        # TODO: Currently batch normalizing twice, change it to method outlined in the paper
         # The below z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
-        z_pre_norm = self.batch_norm_no_noise(z_pre)
+        z_pre_norm = self.batch_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
         z_noise = z_pre_norm + noise
-        z = self.batch_norm(z_noise)
+        z = self.bn_gamma_beta(z_noise)
         h = self.activation(z)
         return h
 
@@ -76,6 +83,7 @@ class StackedEncoders(torch.nn.Module):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
         self.encoders = torch.nn.Sequential()
+        self.add_noise = add_noise
         n_encoders = len(d_encoders)
         for i in range(n_encoders):
             if i == 0:
@@ -95,6 +103,10 @@ class StackedEncoders(torch.nn.Module):
 
     def forward(self, x):
         h = x
+        if self.add_noise:
+            # TODO: add noise to x
+            pass
+        raise NotImplementedError
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
             h = encoder.forward(h)
