@@ -30,7 +30,7 @@ class Encoder(torch.nn.Module):
 
         # Batch Normalization
         # For Relu Beta, Gamma of batch-norm are redundant, hence not trained
-        # For Softmax Beta, Gamm are trained
+        # For Softmax Beta, Gamma are trained
         self.batch_norm_no_noise = torch.nn.BatchNorm1d(d_out, affine=False)
         self.batch_norm = torch.nn.BatchNorm1d(d_out, affine=train_batch_norm)
 
@@ -88,7 +88,7 @@ class StackedEncoders(torch.nn.Module):
 
     def forward(self, x):
         h = x
-        for e_ref in enumerate(self.encoders_ref):
+        for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
             h = encoder.forward(h)
         return h
