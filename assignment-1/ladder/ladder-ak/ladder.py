@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import sys
-sys.path.append("/Users/abhishekkadian/Documents/Github/jaa-dl/assignment-1/")
+sys.path.append("/home/ak6179/jaa-dl/assignment-1/")
 
 import torch
 from torch.autograd import Variable
@@ -10,14 +10,17 @@ import numpy as np
 import pickle
 from torch.optim import Adam
 
+import argparse
+
 
 class Encoder(torch.nn.Module):
-    def __init__(self, d_in, d_out, activation_type, train_batch_norm, bias):
+    def __init__(self, d_in, d_out, activation_type, train_batch_norm, bias, add_noise):
         super(Encoder, self).__init__()
         self.d_in = d_in
         self.d_out = d_out
         self.activation_type = activation_type
         self.train_batch_norm = train_batch_norm
+        self.add_noise = add_noise
 
         # Encoder
         # Encoder only uses W matrix, no bias
@@ -45,7 +48,7 @@ class Encoder(torch.nn.Module):
         h = self.activation(z)
         return h
 
-    def forward(self, tilde_h):
+    def forward_noise(self, tilde_h):
         # The below z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
         z_pre_norm = self.batch_norm_no_noise(z_pre)
@@ -55,9 +58,15 @@ class Encoder(torch.nn.Module):
         h = self.activation(z)
         return h
 
+    def forward(self, h):
+        if self.add_noise:
+            return self.forward_noise(h)
+        else:
+            return self.forward_clean(h)
+
 
 class StackedEncoders(torch.nn.Module):
-    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases):
+    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases, add_noise):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
         self.sequential = torch.nn.Sequential()
@@ -73,24 +82,28 @@ class StackedEncoders(torch.nn.Module):
             train_batch_norm = train_batch_norms[i]
             bias = biases[i]
             encoder_ref = "encoder-" + str(i)
-            encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias)
+            encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias, add_noise=add_noise)
             self.encoders_ref.append(encoder_ref)
             self.sequential.add_module(encoder_ref, encoder)
 
-    def forward_clean(self, x):
-        h = x
-        for encoder in self.encoders:
-            h = encoder.forward_clean(h)
-        return h
-
     def forward(self, x):
-        h0= x + Variable(torch.randn(x.size()))
-        return self.sequential.forward(h0)
+        return self.sequential.forward(x)
 
 
 def main():
-    epochs = 2
-    batch_size = 100
+    # command line arguments
+    parser = argparse.ArgumentParser(description="Parser for Ladder network")
+    parser.add_argument('--batch', type=int)
+    parser.add_argument('--epochs', type=int)
+    args = parser.parse_args()
+
+    batch_size = args.batch
+    epochs = args.epochs
+
+    print("=====================")
+    print("BATCH SIZE:", batch_size)
+    print("EPOCHS:", epochs)
+    print("=====================")
 
     print("===  Loading Data ===")
     with open("../../data/train_labeled.p") as f:
@@ -101,17 +114,18 @@ def main():
     loader_kwargs = {}
 
     # TODO: Test both shuffled and non-shuffled version for train_loader
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False, **loader_kwargs)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
     encoder_sizes = [1000, 500, 250, 250, 250, 10]
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "log_softmax"]
     encoder_train_batch_norms = [False, False, False, False, False, True]
     # TODO: Verify if all the encoders don't have any bias
     encoder_bias = [False, False, False, False, False, False]
+    add_noise = False
 
     se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations,
-                         encoder_train_batch_norms, encoder_bias)
+                         encoder_train_batch_norms, encoder_bias, add_noise)
 
     optimizer = Adam(se.parameters(), lr=0.002)
     loss = torch.nn.NLLLoss()
@@ -121,7 +135,7 @@ def main():
         num_batches = 0
         for batch_idx, (data, target) in enumerate(train_loader):
             data = data[:,0,:,:].numpy()
-            data = data.reshape(batch_size, 28 * 28)
+            data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
             data, target = Variable(data), Variable(target)
             optimizer.zero_grad()
@@ -136,7 +150,7 @@ def main():
         total = 0.
         for batch_idx, (data, target) in enumerate(valid_loader):
             data = data[:, 0, :, :].numpy()
-            data = data.reshape(batch_size, 28 * 28)
+            data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
             data, target = Variable(data), Variable(target)
             output = se.forward(data)
