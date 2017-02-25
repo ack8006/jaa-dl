@@ -48,25 +48,16 @@ class Encoder(torch.nn.Module):
         h = self.activation(z)
         return h
 
-    def forward_noise(self, tilde_h):
+    def forward(self, tilde_h):
         # The below z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
         z_pre_norm = self.batch_norm_no_noise(z_pre)
-        # Add noise
-        z_noise = z_pre_norm + Variable(torch.randn(z_pre_norm.size()))
-        z = self.batch_norm(z_noise)
-        h = self.activation(z)
+        h = self.activation(z_pre)
         return h
-
-    def forward(self, h):
-        if self.add_noise:
-            return self.forward_noise(h)
-        else:
-            return self.forward_clean(h)
 
 
 class StackedEncoders(torch.nn.Module):
-    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases, add_noise):
+    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
         self.sequential = torch.nn.Sequential()
@@ -82,12 +73,19 @@ class StackedEncoders(torch.nn.Module):
             train_batch_norm = train_batch_norms[i]
             bias = biases[i]
             encoder_ref = "encoder-" + str(i)
-            encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias, add_noise=add_noise)
+            encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias, add_noise=False)
             self.encoders_ref.append(encoder_ref)
             self.sequential.add_module(encoder_ref, encoder)
 
+    def forward_clean(self, x):
+        h = x
+        for encoder in self.encoders:
+            h = encoder.forward_clean(h)
+        return h
+
     def forward(self, x):
-        return self.sequential.forward(x)
+        h0 = x
+        return self.sequential.forward(h0)
 
 
 def main():
@@ -113,6 +111,7 @@ def main():
 
     loader_kwargs = {}
 
+    # TODO: Test both shuffled and non-shuffled version for train_loader
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
@@ -121,10 +120,9 @@ def main():
     encoder_train_batch_norms = [False, False, False, False, False, True]
     # TODO: Verify if all the encoders don't have any bias
     encoder_bias = [False, False, False, False, False, False]
-    add_noise = False
 
     se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations,
-                         encoder_train_batch_norms, encoder_bias, add_noise)
+                         encoder_train_batch_norms, encoder_bias)
 
     optimizer = Adam(se.parameters(), lr=0.002)
     loss = torch.nn.NLLLoss()
