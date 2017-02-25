@@ -14,13 +14,15 @@ import argparse
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, d_in, d_out, activation_type, train_batch_norm, bias, add_noise):
+    def __init__(self, d_in, d_out, activation_type, train_batch_norm,
+                 bias, add_noise, noise_level):
         super(Encoder, self).__init__()
         self.d_in = d_in
         self.d_out = d_out
         self.activation_type = activation_type
         self.train_batch_norm = train_batch_norm
         self.add_noise = add_noise
+        self.noise_level = noise_level
 
         # Encoder
         # Encoder only uses W matrix, no bias
@@ -49,11 +51,14 @@ class Encoder(torch.nn.Module):
         return h
 
     def forward_noise(self, tilde_h):
+        # TODO: Currently batch normalizing twice, change it to method outlined in the paper
         # The below z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
         z_pre_norm = self.batch_norm_no_noise(z_pre)
         # Add noise
-        z_noise = z_pre_norm + Variable(torch.randn(z_pre_norm.size()))
+        noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
+        noise = Variable(torch.FloatTensor(noise))
+        z_noise = z_pre_norm + noise
         z = self.batch_norm(z_noise)
         h = self.activation(z)
         return h
@@ -66,7 +71,8 @@ class Encoder(torch.nn.Module):
 
 
 class StackedEncoders(torch.nn.Module):
-    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms, biases, add_noise):
+    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms,
+                 biases, add_noise, noise_std):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
         self.encoders = torch.nn.Sequential()
@@ -81,7 +87,8 @@ class StackedEncoders(torch.nn.Module):
             train_batch_norm = train_batch_norms[i]
             bias = biases[i]
             encoder_ref = "encoder_" + str(i)
-            encoder = Encoder(d_input, d_output, activation, train_batch_norm, bias, add_noise=add_noise)
+            encoder = Encoder(d_input, d_output, activation, train_batch_norm,
+                              bias, add_noise=add_noise, noise_level=noise_std)
             self.encoders_ref.append(encoder_ref)
             self.encoders.add_module(encoder_ref, encoder)
 
@@ -99,14 +106,19 @@ def main():
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument('--batch', type=int)
     parser.add_argument('--epochs', type=int)
+    parser.add_argument('--noise_std', type=float)
     args = parser.parse_args()
 
     batch_size = args.batch
     epochs = args.epochs
+    noise_std = args.noise_std
+    add_noise = True
 
     print("=====================")
     print("BATCH SIZE:", batch_size)
     print("EPOCHS:", epochs)
+    print("ADD NOISE:", add_noise)
+    print("NOISE STD:", noise_std)
     print("=====================\n")
 
     print("======  Loading Data ======")
@@ -114,6 +126,7 @@ def main():
         train_dataset = pickle.load(f)
     with open("../../data/validation.p") as f:
         valid_dataset = pickle.load(f)
+    print("===========================")
 
     loader_kwargs = {}
 
@@ -122,13 +135,13 @@ def main():
 
     encoder_sizes = [1000, 500, 250, 250, 250, 10]
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "log_softmax"]
-    encoder_train_batch_norms = [False, False, False, False, False, True]
+    # TODO: Verify whether you need affine for relu.
+    encoder_train_batch_norms = [True, True, True, True, True, True]
     # TODO: Verify if all the encoders don't have any bias
     encoder_bias = [False, False, False, False, False, False]
-    add_noise = False
 
-    se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations,
-                         encoder_train_batch_norms, encoder_bias, add_noise)
+    se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations, encoder_train_batch_norms,
+                         encoder_bias, add_noise, noise_std)
 
     optimizer = Adam(se.parameters(), lr=0.002)
     loss = torch.nn.NLLLoss()
