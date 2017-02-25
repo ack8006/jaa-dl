@@ -31,10 +31,10 @@ class Encoder(torch.nn.Module):
         self.linear.weight.data = torch.randn(self.linear.weight.data.size()) / np.sqrt(d_in)
 
         # Batch Normalization
-        # For Relu Beta, Gamma of batch-norm are redundant, hence not trained
+        # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
-        self.gamma = None
-        self.beta = None
+        self.gamma = Parameter(None)
+        self.beta = Parameter(None)
         raise NotImplementedError
 
         # Activation
@@ -45,7 +45,9 @@ class Encoder(torch.nn.Module):
         elif activation_type == 'softmax':
             self.activation = torch.nn.Softmax()
 
-    def batch_normalize(self, x):
+    def bn_normalize(self, x):
+        # TODO: You have to use rolling mean and std/variance
+        # TODO: Refer to the batch-normalization paper
         raise NotImplementedError
 
     def bn_gamma_beta(self, x):
@@ -53,7 +55,7 @@ class Encoder(torch.nn.Module):
 
     def forward_clean(self, h):
         t = self.linear(h)
-        z = self.batch_normalize(t)
+        z = self.bn_normalize(t)
         z = self.bn_gamma_beta(z)
         h = self.activation(z)
         return h
@@ -61,7 +63,7 @@ class Encoder(torch.nn.Module):
     def forward_noise(self, tilde_h):
         # The below z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
-        z_pre_norm = self.batch_normalize(z_pre)
+        z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
