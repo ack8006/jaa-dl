@@ -293,6 +293,8 @@ def main():
     print("=====================")
     print("TRAINING")
 
+    # TODO: Add annealing of learning rate after 100 epochs
+
     for e in range(epochs):
         agg_cost = 0.
         num_batches = 0
