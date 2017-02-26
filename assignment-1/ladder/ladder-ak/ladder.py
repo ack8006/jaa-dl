@@ -24,8 +24,8 @@ class Decoder(torch.nn.Module):
         self.a5 = Parameter(0. * torch.ones(d_in))
 
         self.a6 = Parameter(0. * torch.ones(d_in))
-        self.a8 = Parameter(0. * torch.ones(d_in))
         self.a7 = Parameter(1. * torch.ones(d_in))
+        self.a8 = Parameter(0. * torch.ones(d_in))
         self.a9 = Parameter(0. * torch.ones(d_in))
         self.a10 = Parameter(0. * torch.ones(d_in))
 
@@ -34,12 +34,42 @@ class Decoder(torch.nn.Module):
         # batch-normalization for u
         self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
 
+        # buffer for hat_z_l to be used for cost calculation
+        self.buffer_hat_z_l = None
+
     def g(self, tilde_z_l, u_l):
-        raise NotImplementedError
+        ones = Parameter(torch.ones(tilde_z_l.size()[0], 1))
+
+        b_a1 = ones.mm(self.a1)
+        b_a2 = ones.mm(self.a2)
+        b_a3 = ones.mm(self.a3)
+        b_a4 = ones.mm(self.a4)
+        b_a5 = ones.mm(self.a5)
+
+        b_a6 = ones.mm(self.a6)
+        b_a7 = ones.mm(self.a7)
+        b_a8 = ones.mm(self.a8)
+        b_a9 = ones.mm(self.a9)
+        b_a10 = ones.mm(self.a10)
+
+        mu_l = torch.mul(b_a1, torch.sigmoid(torch.mul(b_a2, u_l) + b_a3)) + \
+               torch.mul(b_a4, u_l) + \
+               b_a5
+
+        v_l = torch.mul(b_a6, torch.sigmoid(torch.mul(b_a7, u_l) + b_a8)) + \
+              torch.mul(b_a9, u_l) + \
+              b_a10
+
+        hat_z_l = torch.mul(tilde_z_l - mu_l, v_l) + mu_l
+
+        return hat_z_l
+
 
     def forward(self, tilde_z_l, u_l):
         # hat_z_l will be used for calculating decoder costs
         hat_z_l = self.g(tilde_z_l, u_l)
+        # store hat_z_l in buffer for cost calculation
+        self.buffer_hat_z_l = hat_z_l
         t = self.V.forward(hat_z_l)
         u_l_below = self.bn_normalize(t)
         return u_l_below
@@ -85,6 +115,11 @@ class Encoder(torch.nn.Module):
         elif activation_type == 'softmax':
             self.activation = torch.nn.Softmax()
 
+        # buffer for z_pre which will be used in decoder cost
+        self.buffer_z_pre = None
+        # buffer for tilde_z which will be used by decoder for reconstruction
+        self.buffer_tilde_z = None
+
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
         t = x + ones.mm(self.bn_beta)
@@ -102,12 +137,16 @@ class Encoder(torch.nn.Module):
     def forward_noise(self, tilde_h):
         # z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
+        # store z_pre in buffer
+        self.buffer_z_pre = z_pre
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
         # tilde_z will be used by decoder for reconstruction
         tilde_z = z_pre_norm + noise
+        # store tilde_z in buffer
+        self.buffer_tilde_z = tilde_z
         z = self.bn_gamma_beta(tilde_z)
         h = self.activation(z)
         return h
