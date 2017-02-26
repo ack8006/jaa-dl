@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import sys
+sys.path.append("/Users/abhishekkadian/Documents/Github/jaa-dl/assignment-1")
 sys.path.append("/home/ak6179/jaa-dl/assignment-1/")
 
 import numpy as np
@@ -17,17 +18,17 @@ class Decoder(torch.nn.Module):
     def __init__(self, d_in, d_out):
         super(Decoder, self).__init__()
 
-        self.a1 = Parameter(0. * torch.ones(d_in))
-        self.a2 = Parameter(1. * torch.ones(d_in))
-        self.a3 = Parameter(0. * torch.ones(d_in))
-        self.a4 = Parameter(0. * torch.ones(d_in))
-        self.a5 = Parameter(0. * torch.ones(d_in))
+        self.a1 = Parameter(0. * torch.ones(1, d_in))
+        self.a2 = Parameter(1. * torch.ones(1, d_in))
+        self.a3 = Parameter(0. * torch.ones(1, d_in))
+        self.a4 = Parameter(0. * torch.ones(1, d_in))
+        self.a5 = Parameter(0. * torch.ones(1, d_in))
 
-        self.a6 = Parameter(0. * torch.ones(d_in))
-        self.a7 = Parameter(1. * torch.ones(d_in))
-        self.a8 = Parameter(0. * torch.ones(d_in))
-        self.a9 = Parameter(0. * torch.ones(d_in))
-        self.a10 = Parameter(0. * torch.ones(d_in))
+        self.a6 = Parameter(0. * torch.ones(1, d_in))
+        self.a7 = Parameter(1. * torch.ones(1, d_in))
+        self.a8 = Parameter(0. * torch.ones(1, d_in))
+        self.a9 = Parameter(0. * torch.ones(1, d_in))
+        self.a10 = Parameter(0. * torch.ones(1, d_in))
 
         self.V = torch.nn.Linear(d_in, d_out, bias=False)
         self.V.weight.data = torch.randn(self.V.weight.data.size()) / np.sqrt(d_in)
@@ -64,7 +65,6 @@ class Decoder(torch.nn.Module):
 
         return hat_z_l
 
-
     def forward(self, tilde_z_l, u_l):
         # hat_z_l will be used for calculating decoder costs
         hat_z_l = self.g(tilde_z_l, u_l)
@@ -92,8 +92,17 @@ class StackedDecoders(torch.nn.Module):
             self.decoders_ref.append(decoder_ref)
             self.decoders.add_module(decoder_ref, decoder)
 
-    def forward(self, tilde_z_top, u_top):
-        raise NotImplementedError
+    def forward(self, tilde_z_layers, u_top):
+        # Note that tilde_z_layers should be in reversed order of encoders
+        hat_z = []
+        u = u_top
+        for i in range(len(self.decoders_ref)):
+            d_ref = self.decoders_ref[i]
+            decoder = getattr(self.decoders, d_ref)
+            tilde_z = tilde_z_layers[i]
+            u = decoder.forward(tilde_z, u)
+            hat_z.append(decoder.buffer_hat_z_l)
+        return hat_z
 
 
 class Encoder(torch.nn.Module):
@@ -156,7 +165,7 @@ class Encoder(torch.nn.Module):
         z_pre = self.linear(tilde_h)
         # store z_pre in buffer
         # TODO: Check whether you have to detach this or not.
-        self.buffer_z_pre = z_pre
+        self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
@@ -200,7 +209,6 @@ class StackedEncoders(torch.nn.Module):
             self.encoders_ref.append(encoder_ref)
             self.encoders.add_module(encoder_ref, encoder)
 
-
     def forward(self, x):
         # add noise
         if self.add_noise:
@@ -214,6 +222,16 @@ class StackedEncoders(torch.nn.Module):
             encoder = getattr(self.encoders, e_ref)
             h = encoder.forward(h)
         return h
+
+    def get_encoders_tilde_z(self, reverse=True):
+        tilde_z_layers = []
+        for e_ref in self.encoders_ref:
+            encoder = getattr(self.encoders, e_ref)
+            tilde_z = encoder.buffer_tilde_z
+            tilde_z_layers.append(tilde_z)
+        if reverse:
+            tilde_z_layers.reverse()
+        return tilde_z_layers
 
 
 def main():
@@ -248,17 +266,23 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
-    encoder_sizes = [1000, 500, 250, 250, 250, 10]
-    encoder_activations = ["relu", "relu", "relu", "relu", "relu", "log_softmax"]
+    encoder_in = 28 * 28
+    decoder_in = 10
+    encoder_sizes = [1000, 500, 250, 250, 250, decoder_in]
+    decoder_sizes = [250, 250, 250, 500, 1000, encoder_in]
+
+    encoder_activations = ["relu", "relu", "relu", "relu", "relu", "softmax"]
     # TODO: Verify whether you need affine for relu.
     encoder_train_bn_scaling = [False, False, False, False, False, True]
     encoder_bias = [False, False, False, False, False, False]
 
-    se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations, encoder_train_bn_scaling,
+    se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations, encoder_train_bn_scaling,
                          encoder_bias, add_noise, noise_std)
 
+    de = StackedDecoders(decoder_in, decoder_sizes)
+
     optimizer = Adam(se.parameters(), lr=0.002)
-    loss = torch.nn.NLLLoss()
+    loss_labelled = torch.nn.CrossEntropyLoss()
 
     print("")
     print("=======NETWORK=======")
@@ -273,13 +297,25 @@ def main():
         agg_cost = 0.
         num_batches = 0
         for batch_idx, (data, target) in enumerate(train_loader):
+            # pass through encoders
             data = data[:,0,:,:].numpy()
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
             data, target = Variable(data), Variable(target)
             optimizer.zero_grad()
             output = se.forward(data)
-            cost = loss.forward(output, target)
+
+            tilde_z_layers = se.get_encoders_tilde_z(reverse=True)
+
+            # pass through decoders
+            hat_z_layers = de.forward(tilde_z_layers, output)
+
+            for tempz in hat_z_layers:
+                print(tempz.size())
+
+            _ = raw_input("Press enter to continue: ")
+
+            cost = loss_labelled.forward(output, target)
             cost.backward()
             agg_cost += cost.data[0]
             optimizer.step()
