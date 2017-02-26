@@ -3,14 +3,34 @@ from __future__ import print_function
 import sys
 sys.path.append("/home/ak6179/jaa-dl/assignment-1/")
 
+import numpy as np
+import argparse
+import pickle
+
 import torch
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
-import numpy as np
-import pickle
 from torch.optim import Adam
 
-import argparse
+
+class Decoder(torch.nn.Module):
+    def __init__(self, d_in, d_out):
+        super(Decoder, self).__init__()
+
+        self.V = torch.nn.Linear(d_in, d_out, bias=False)
+        self.V.weight.data  = torch.randn(self.V.weight.data.size()) / np.sqrt(d_in)
+
+        self.a1 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a2 = Parameter(1. * torch.ones(d_in, d_out))
+        self.a3 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a4 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a5 = Parameter(0. * torch.ones(d_in, d_out))
+
+        self.a6 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a7 = Parameter(1. * torch.ones(d_in, d_out))
+        self.a8 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a9 = Parameter(0. * torch.ones(d_in, d_out))
+        self.a10 = Parameter(0. * torch.ones(d_in, d_out))
 
 
 class Encoder(torch.nn.Module):
@@ -39,7 +59,7 @@ class Encoder(torch.nn.Module):
         if self.train_bn_scaling:
             # batch-normalization scaling
             self.bn_gamma = Parameter(torch.FloatTensor(1, d_out))
-            self.bn_gamma.data.uniform_()
+            self.bn_gamma.data = torch.ones(self.bn_gamma.size())
 
         # Activation
         if activation_type == 'relu':
@@ -158,7 +178,6 @@ def main():
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "log_softmax"]
     # TODO: Verify whether you need affine for relu.
     encoder_train_bn_scaling = [False, False, False, False, False, True]
-    # TODO: Verify if all the encoders don't have any bias
     encoder_bias = [False, False, False, False, False, False]
 
     se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations, encoder_train_bn_scaling,
