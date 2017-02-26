@@ -17,20 +17,36 @@ class Decoder(torch.nn.Module):
     def __init__(self, d_in, d_out):
         super(Decoder, self).__init__()
 
+        self.a1 = Parameter(0. * torch.ones(d_in))
+        self.a2 = Parameter(1. * torch.ones(d_in))
+        self.a3 = Parameter(0. * torch.ones(d_in))
+        self.a4 = Parameter(0. * torch.ones(d_in))
+        self.a5 = Parameter(0. * torch.ones(d_in))
+
+        self.a6 = Parameter(0. * torch.ones(d_in))
+        self.a8 = Parameter(0. * torch.ones(d_in))
+        self.a7 = Parameter(1. * torch.ones(d_in))
+        self.a9 = Parameter(0. * torch.ones(d_in))
+        self.a10 = Parameter(0. * torch.ones(d_in))
+
         self.V = torch.nn.Linear(d_in, d_out, bias=False)
-        self.V.weight.data  = torch.randn(self.V.weight.data.size()) / np.sqrt(d_in)
+        self.V.weight.data = torch.randn(self.V.weight.data.size()) / np.sqrt(d_in)
+        # batch-normalization for u
+        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
 
-        self.a1 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a2 = Parameter(1. * torch.ones(d_in, d_out))
-        self.a3 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a4 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a5 = Parameter(0. * torch.ones(d_in, d_out))
+    def g(self, tilde_z_l, u_l):
+        raise NotImplementedError
 
-        self.a6 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a7 = Parameter(1. * torch.ones(d_in, d_out))
-        self.a8 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a9 = Parameter(0. * torch.ones(d_in, d_out))
-        self.a10 = Parameter(0. * torch.ones(d_in, d_out))
+    def forward(self, tilde_z_l, u_l):
+        # hat_z_l will be used for calculating decoder costs
+        hat_z_l = self.g(tilde_z_l, u_l)
+        t = self.V.forward(hat_z_l)
+        u_l_below = self.bn_normalize(t)
+        return u_l_below
+
+
+class StackedDecoders(torch.nn.Module):
+    raise NotImplementedError
 
 
 class Encoder(torch.nn.Module):
@@ -84,14 +100,15 @@ class Encoder(torch.nn.Module):
         return h
 
     def forward_noise(self, tilde_h):
-        # The below z_pre will be used in the decoder cost
+        # z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
-        z_noise = z_pre_norm + noise
-        z = self.bn_gamma_beta(z_noise)
+        # tilde_z will be used by decoder for reconstruction
+        tilde_z = z_pre_norm + noise
+        z = self.bn_gamma_beta(tilde_z)
         h = self.activation(z)
         return h
 
