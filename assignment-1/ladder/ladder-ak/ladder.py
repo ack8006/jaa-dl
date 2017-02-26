@@ -14,28 +14,32 @@ import argparse
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, d_in, d_out, activation_type, train_batch_norm,
+    def __init__(self, d_in, d_out, activation_type, train_bn_scaling,
                  bias, add_noise, noise_level):
         super(Encoder, self).__init__()
         self.d_in = d_in
         self.d_out = d_out
         self.activation_type = activation_type
-        self.train_batch_norm = train_batch_norm
+        self.train_bn_scaling = train_bn_scaling
         self.add_noise = add_noise
         self.noise_level = noise_level
 
         # Encoder
         # Encoder only uses W matrix, no bias
-        # TODO: Add initialization for bias if needed
         self.linear = torch.nn.Linear(d_in, d_out, bias=bias)
         self.linear.weight.data = torch.randn(self.linear.weight.data.size()) / np.sqrt(d_in)
 
         # Batch Normalization
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
-        self.gamma = Parameter(None)
-        self.beta = Parameter(None)
-        raise NotImplementedError
+        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
+        # batch-normalization bias
+        self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
+        self.bn_beta.data.zero_()
+        if self.train_bn_scaling:
+            # batch-normalization scaling
+            self.bn_gamma = Parameter(torch.FloatTensor(1, d_out))
+            self.bn_gamma.data.uniform_()
 
         # Activation
         if activation_type == 'relu':
@@ -45,13 +49,12 @@ class Encoder(torch.nn.Module):
         elif activation_type == 'softmax':
             self.activation = torch.nn.Softmax()
 
-    def bn_normalize(self, x):
-        # TODO: You have to use rolling mean and std/variance
-        # TODO: Refer to the batch-normalization paper
-        raise NotImplementedError
-
     def bn_gamma_beta(self, x):
-        raise NotImplementedError
+        ones = Parameter(torch.ones(x.size()[0], 1))
+        t = x + ones.mm(self.bn_beta)
+        if self.train_bn_scaling:
+            t = torch.mul(t, ones.mm(self.bn_gamma))
+        return t
 
     def forward_clean(self, h):
         t = self.linear(h)
@@ -86,6 +89,7 @@ class StackedEncoders(torch.nn.Module):
         self.encoders_ref = []
         self.encoders = torch.nn.Sequential()
         self.add_noise = add_noise
+        self.noise_level = noise_std
         n_encoders = len(d_encoders)
         for i in range(n_encoders):
             if i == 0:
@@ -104,11 +108,14 @@ class StackedEncoders(torch.nn.Module):
 
 
     def forward(self, x):
-        h = x
+        # add noise
         if self.add_noise:
-            # TODO: add noise to x
-            pass
-        raise NotImplementedError
+            noise = np.random.normal(loc=0.0, scale=self.noise_level, size=x.size())
+            noise = Variable(torch.FloatTensor(noise))
+            h = x + noise
+        else:
+            h = x
+        # pass through encoders
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
             h = encoder.forward(h)
@@ -150,15 +157,20 @@ def main():
     encoder_sizes = [1000, 500, 250, 250, 250, 10]
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "log_softmax"]
     # TODO: Verify whether you need affine for relu.
-    encoder_train_batch_norms = [True, True, True, True, True, True]
+    encoder_train_bn_scaling = [False, False, False, False, False, True]
     # TODO: Verify if all the encoders don't have any bias
     encoder_bias = [False, False, False, False, False, False]
 
-    se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations, encoder_train_batch_norms,
+    se = StackedEncoders(28 * 28, encoder_sizes, encoder_activations, encoder_train_bn_scaling,
                          encoder_bias, add_noise, noise_std)
 
     optimizer = Adam(se.parameters(), lr=0.002)
     loss = torch.nn.NLLLoss()
+
+    print("")
+    print("=======NETWORK=======")
+    print(se)
+    print("=====================")
 
     print("")
     print("=====================")
@@ -198,7 +210,6 @@ def main():
     print("=====================\n")
 
     print("Done :)")
-
 
 if __name__ == "__main__":
     main()
