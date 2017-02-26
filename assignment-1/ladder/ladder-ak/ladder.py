@@ -76,7 +76,24 @@ class Decoder(torch.nn.Module):
 
 
 class StackedDecoders(torch.nn.Module):
-    raise NotImplementedError
+    def __init__(self, d_in, d_decoders):
+        super(StackedDecoders, self).__init__()
+        self.decoders_ref = []
+        self.decoders = torch.nn.Sequential()
+        n_decoders = len(d_decoders)
+        for i in range(n_decoders):
+            if i == 0:
+                d_input = d_in
+            else:
+                d_input = d_decoders[i - 1]
+            d_output = d_decoders[i]
+            decoder_ref = "decoder_" + str(i)
+            decoder = Decoder(d_input, d_output)
+            self.decoders_ref.append(decoder_ref)
+            self.decoders.add_module(decoder_ref, decoder)
+
+    def forward(self, tilde_z_top, u_top):
+        raise NotImplementedError
 
 
 class Encoder(torch.nn.Module):
@@ -138,6 +155,7 @@ class Encoder(torch.nn.Module):
         # z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
         # store z_pre in buffer
+        # TODO: Check whether you have to detach this or not.
         self.buffer_z_pre = z_pre
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
