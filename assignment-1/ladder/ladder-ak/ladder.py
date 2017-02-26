@@ -298,6 +298,11 @@ def main():
     for e in range(epochs):
         agg_cost = 0.
         num_batches = 0
+
+        # TODO: Check if model.train() and model.eval() has impact over all the submodules including all the bn parameters.
+        # Training
+        se.train()
+        de.train()
         for batch_idx, (data, target) in enumerate(train_loader):
             # pass through encoders
             data = data[:,0,:,:].numpy()
@@ -312,16 +317,15 @@ def main():
             # pass through decoders
             hat_z_layers = de.forward(tilde_z_layers, output)
 
-            for tempz in hat_z_layers:
-                print(tempz.size())
-
-            _ = raw_input("Press enter to continue: ")
-
             cost = loss_labelled.forward(output, target)
             cost.backward()
             agg_cost += cost.data[0]
             optimizer.step()
             num_batches += 1
+
+        # Evaluation
+        se.eval()
+        de.eval()
         agg_cost /= num_batches
         correct = 0.
         total = 0.
