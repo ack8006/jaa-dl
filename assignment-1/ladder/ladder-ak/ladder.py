@@ -124,7 +124,6 @@ class Encoder(torch.nn.Module):
         # Batch Normalization
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
-        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
         # batch-normalization bias
         self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
         self.bn_beta.data.zero_()
@@ -145,6 +144,13 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre = None
         # buffer for tilde_z which will be used by decoder for reconstruction
         self.buffer_tilde_z = None
+
+    def bn_normalize(self, x):
+        ones = Variable(torch.ones(x.size()[0], 1))
+        mean = torch.mean(x, 0)
+        std = torch.std(x, 0)
+        x_normalized = torch.div(x - ones.mm(mean), ones.mm(std + 1e-5))
+        torch.std()
 
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
@@ -308,7 +314,9 @@ def main():
             data = data[:,0,:,:].numpy()
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
+            # TODO: Change from LongTensor to IntTensor. AUtograd has a bug with LongTensor.
             data, target = Variable(data), Variable(target)
+
             optimizer.zero_grad()
             output = se.forward(data)
 
@@ -345,6 +353,7 @@ def main():
     print("=====================\n")
 
     print("Done :)")
+
 
 if __name__ == "__main__":
     main()
