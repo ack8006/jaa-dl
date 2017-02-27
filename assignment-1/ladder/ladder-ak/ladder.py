@@ -124,8 +124,8 @@ class Encoder(torch.nn.Module):
         # Batch Normalization
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
+        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
         # batch-normalization bias
-        self.reset_bn()
         self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
         self.bn_beta.data.zero_()
         if self.train_bn_scaling:
@@ -145,38 +145,6 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre = None
         # buffer for tilde_z which will be used by decoder for reconstruction
         self.buffer_tilde_z = None
-
-    def bn_normalize(self, x):
-        """Batch Normalization
-        reference: https://standardfrancis.wordpress.com/2015/04/16/batch-normalization/
-        """
-        ones = Variable(torch.ones(x.size()[0], 1))
-        if self.training:
-            mean = torch.mean(x, 0)
-            std = np.std(x.data.numpy(), axis=0).reshape(1, x.size()[1])
-            std = Variable(torch.FloatTensor(std))
-            x_normalized = torch.div(x - ones.mm(mean), ones.mm(std + 1e-5))
-            # Updating values for validation/test phase
-            if self.running_mean_agg is None:
-                self.running_mean_agg = mean
-            else:
-                self.running_mean_agg += mean
-            if self.running_std_agg is None:
-                self.running_std_agg = std
-            else:
-                self.running_std_agg += std
-            self.batch_count += 1.
-        else:
-            mean = self.running_mean_agg / self.batch_count
-            std = self.running_std_agg * (self.batch_count / (self.batch_count - 1))
-            x_normalized = torch.div(x - ones.mm(mean), ones.mm(std + 1e-5))
-        return x_normalized
-
-
-    def reset_bn(self):
-        self.batch_count = 0.
-        self.running_mean_agg = None
-        self.running_std_agg = None
 
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
@@ -265,11 +233,6 @@ class StackedEncoders(torch.nn.Module):
             tilde_z_layers.reverse()
         return tilde_z_layers
 
-    def reset_bn_encoders(self):
-        for e_ref in self.encoders_ref:
-            encoder = getattr(self.encoders, e_ref)
-            encoder.reset_bn()
-
 
 def main():
     # command line arguments
@@ -337,8 +300,6 @@ def main():
         num_batches = 0
 
         # TODO: Check if model.train() and model.eval() has impact over all the submodules including all the bn parameters.
-        # Reset the batch-normalization parameters for encoders
-        se.reset_bn_encoders()
         # Training
         se.train()
         de.train()
@@ -347,10 +308,7 @@ def main():
             data = data[:,0,:,:].numpy()
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
-            # TODO: Hold off on this, things should work right now because LongTensor is only used for cost.
-            # TODO: Change from LongTensor to FloatTensor. Autograd has a bug with LongTensor.
             data, target = Variable(data), Variable(target)
-
             optimizer.zero_grad()
             output = se.forward(data)
 
@@ -387,7 +345,6 @@ def main():
     print("=====================\n")
 
     print("Done :)")
-
 
 if __name__ == "__main__":
     main()
