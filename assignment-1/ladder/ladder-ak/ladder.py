@@ -13,6 +13,8 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.optim import Adam
 
+epoch_global = -1
+
 
 class Decoder(torch.nn.Module):
     def __init__(self, d_in, d_out):
@@ -124,8 +126,8 @@ class Encoder(torch.nn.Module):
         # Batch Normalization
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
-        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
         # batch-normalization bias
+        self.reset_bn()
         self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
         self.bn_beta.data.zero_()
         if self.train_bn_scaling:
@@ -145,6 +147,44 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre = None
         # buffer for tilde_z which will be used by decoder for reconstruction
         self.buffer_tilde_z = None
+        # buffer for z_pre bn parameters to be used in cost calculation
+        self.buffer_z_pre_mean = None
+        self.buffer_z_pre_var = None
+
+        self.bn_test = torch.nn.BatchNorm1d(d_out, affine=False)
+
+    def bn_normalize(self, x, momentum=0.1):
+        """Batch Normalization
+        The Batch Normalization implemented here is different from the original
+        batch-normalization paper (reference 1). This uses a momentum
+        to calculate running means and variances. PyTorch's batch-normalization
+        also works in the exact same way.
+
+        reference 1: https://arxiv.org/abs/1502.03167
+        reference 2: https://standardfrancis.wordpress.com/2015/04/16/batch-normalization/
+        """
+        ones = Variable(torch.ones(x.size()[0], 1))
+        if self.training:
+            mean = torch.mean(x, 0)
+            var = np.var(x.data.numpy(), axis=0).reshape(1, x.size()[1])
+            var = Variable(torch.FloatTensor(var))
+            # Updating values for validation/test phase
+            self.running_mean = ((1.0 - momentum) * self.running_mean) + momentum * mean
+            self.running_var = ((1.0 - momentum) * self.running_var) + momentum * var
+            self.batch_count += 1.
+        else:
+            mean = self.running_mean
+            var = self.running_var
+        x_normalized = torch.div(x - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
+        self.buffer_z_pre_mean = mean.clone()
+        self.buffer_z_pre_var = var.clone()
+        return x_normalized
+
+
+    def reset_bn(self):
+        self.batch_count = 0.
+        self.running_mean = 0.
+        self.running_var = 1.
 
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
@@ -167,6 +207,14 @@ class Encoder(torch.nn.Module):
         # TODO: Check whether you have to detach this or not.
         self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
+        z_pre_norm_test = self.bn_test(z_pre)
+        # if not self.training and epoch_global == 1:
+        #     print("#" * 50)
+        #     print(z_pre_norm)
+        #     print("-" * 50)
+        #     print(z_pre_norm_test)
+        #     print("#" * 50)
+        #     _ = raw_input("press key to continue: ")
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
@@ -233,6 +281,11 @@ class StackedEncoders(torch.nn.Module):
             tilde_z_layers.reverse()
         return tilde_z_layers
 
+    def reset_bn_encoders(self):
+        for e_ref in self.encoders_ref:
+            encoder = getattr(self.encoders, e_ref)
+            encoder.reset_bn()
+
 
 def main():
     # command line arguments
@@ -295,11 +348,16 @@ def main():
 
     # TODO: Add annealing of learning rate after 100 epochs
 
+    global epoch_global
+
     for e in range(epochs):
         agg_cost = 0.
         num_batches = 0
 
-        # TODO: Check if model.train() and model.eval() has impact over all the submodules including all the bn parameters.
+        epoch_global = e
+
+        # TODO: Check if you have to reset bn parameters after every epoch
+
         # Training
         se.train()
         de.train()
@@ -308,7 +366,10 @@ def main():
             data = data[:,0,:,:].numpy()
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
+            # TODO: Hold off on this, things should work right now because LongTensor is only used for cost.
+            # TODO: Change from LongTensor to FloatTensor. Autograd has a bug with LongTensor.
             data, target = Variable(data), Variable(target)
+
             optimizer.zero_grad()
             output = se.forward(data)
 
@@ -322,6 +383,10 @@ def main():
             agg_cost += cost.data[0]
             optimizer.step()
             num_batches += 1
+
+        print("*" * 50)
+        print("EVALUATING NOW")
+        print("*" * 50)
 
         # Evaluation
         se.eval()
@@ -345,6 +410,7 @@ def main():
     print("=====================\n")
 
     print("Done :)")
+
 
 if __name__ == "__main__":
     main()
