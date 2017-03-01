@@ -127,7 +127,7 @@ class Encoder(torch.nn.Module):
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
         # batch-normalization bias
-        self.reset_bn()
+        self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
         self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
         self.bn_beta.data.zero_()
         if self.train_bn_scaling:
@@ -151,44 +151,16 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre_mean = None
         self.buffer_z_pre_var = None
 
-        self.bn_test = torch.nn.BatchNorm1d(d_out, affine=False)
-
-    def bn_normalize(self, x, momentum=0.1):
-        """Batch Normalization
-        The Batch Normalization implemented here is different from the original
-        batch-normalization paper (reference 1). This uses a momentum
-        to calculate running means and variances. PyTorch's batch-normalization
-        also works in the exact same way.
-
-        reference 1: https://arxiv.org/abs/1502.03167
-        reference 2: https://standardfrancis.wordpress.com/2015/04/16/batch-normalization/
-        """
-        ones = Variable(torch.ones(x.size()[0], 1))
-        if self.training:
-            mean = torch.mean(x, 0)
-            var = np.var(x.data.numpy(), axis=0).reshape(1, x.size()[1])
-            var = Variable(torch.FloatTensor(var))
-            # unbiased_var = var * (float(x.size()[0]) / (float(x.size()[0]) - 1.))
-            # unbiased_var = np.var(x.data.numpy(), ddof=1, axis=0).reshape(1, x.size()[1])
-            # unbiased_var = Variable(torch.FloatTensor(unbiased_var))
-            unbiased_var = torch.var(x, 0)
-            # Updating values for validation/test phase
-            self.running_mean = ((1.0 - momentum) * self.running_mean) + momentum * mean
-            self.running_var = ((1.0 - momentum) * self.running_var) + momentum * unbiased_var
-            self.batch_count += 1.
-        else:
-            mean = self.running_mean
-            var = self.running_var
-        x_normalized = torch.div(x - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
-        self.buffer_z_pre_mean = mean.clone()
-        self.buffer_z_pre_var = var.clone()
-        return x_normalized
-
-
-    def reset_bn(self):
-        self.batch_count = 0.
-        self.running_mean = 0.
-        self.running_var = 1.
+    def bn_normalize_z_pre(self, z, z_pre):
+        # TODO: @Alex, @Joe review this!
+        ones = Variable(torch.ones(z.size()[0], 1))
+        # mean and variance are calculated wrt z_pre
+        mean = torch.mean(z_pre, 0)
+        var = np.var(z_pre.data.numpy(), axis=0).reshape(1, z_pre.size()[1])
+        var = Variable(torch.FloatTensor(var))
+        # normalize z using mean and variance of z_pre
+        z_normalized = torch.div(z - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
+        return z_normalized
 
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
@@ -211,16 +183,6 @@ class Encoder(torch.nn.Module):
         # TODO: Check whether you have to detach this or not.
         self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
-        # z_pre_norm_test = self.bn_test(z_pre)
-        # z_pre_norm = z_pre_norm_test
-        # if not self.training and epoch_global == 5:
-        #     print(np.all(np.isclose(z_pre_norm.data, z_pre_norm_test.data)))
-            # print("#" * 50)
-            # print(z_pre_norm)
-            # print("-" * 50)
-            # print(z_pre_norm_test)
-            # print("#" * 50)
-            # _ = raw_input("press key to continue: ")
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
@@ -294,28 +256,6 @@ class StackedEncoders(torch.nn.Module):
 
 
 def main():
-    # n = 3
-    # d = 2
-    # model = torch.nn.BatchNorm1d(d, affine=False)
-    # encoder = Encoder(2, 5, "relu", True, False, True, 0.1)
-    # t = [[4, 7], [3, 4], [6, 9]]
-    # A = Variable(torch.FloatTensor(t))
-    # _ = model(A)
-    # _ = encoder.bn_normalize(A)
-    # _ = model(A)
-    # _ = encoder.bn_normalize(A)
-    # _ = model(A)
-    # _ = encoder.bn_normalize(A)
-    # model.eval()
-    # encoder.eval()
-    # print(model(A))
-    # print("-" * 50)
-    # print(encoder.bn_normalize(A))
-    # return
-
-    ###################################################################################
-    ###################################################################################
-
     # command line arguments
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument('--batch', type=int)
