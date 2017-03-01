@@ -168,9 +168,11 @@ class Encoder(torch.nn.Module):
             mean = torch.mean(x, 0)
             var = np.var(x.data.numpy(), axis=0).reshape(1, x.size()[1])
             var = Variable(torch.FloatTensor(var))
+            # unbiased_var = var * (float(x.size()[0]) / (float(x.size()[0]) - 1.))
+            unbiased_var = np.var(x.data.numpy(), ddof=1, axis=0).reshape(1, x.size()[1])
             # Updating values for validation/test phase
             self.running_mean = ((1.0 - momentum) * self.running_mean) + momentum * mean
-            self.running_var = ((1.0 - momentum) * self.running_var) + momentum * var
+            self.running_var = ((1.0 - momentum) * self.running_var) + momentum * unbiased_var
             self.batch_count += 1.
         else:
             mean = self.running_mean
@@ -208,13 +210,14 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
         z_pre_norm_test = self.bn_test(z_pre)
-        # if not self.training and epoch_global == 1:
-        #     print("#" * 50)
-        #     print(z_pre_norm)
-        #     print("-" * 50)
-        #     print(z_pre_norm_test)
-        #     print("#" * 50)
-        #     _ = raw_input("press key to continue: ")
+        # z_pre_norm = z_pre_norm_test
+        if not self.training and epoch_global == 12:
+            print("#" * 50)
+            print(z_pre_norm)
+            print("-" * 50)
+            print(z_pre_norm_test)
+            print("#" * 50)
+            _ = raw_input("press key to continue: ")
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
         noise = Variable(torch.FloatTensor(noise))
@@ -288,6 +291,28 @@ class StackedEncoders(torch.nn.Module):
 
 
 def main():
+    # n = 3
+    # d = 2
+    # model = torch.nn.BatchNorm1d(d, affine=False)
+    # encoder = Encoder(2, 5, "relu", True, False, True, 0.1)
+    # t = [[4, 7], [3, 4], [6, 9]]
+    # A = Variable(torch.FloatTensor(t))
+    # _ = model(A)
+    # _ = encoder.bn_normalize(A)
+    # _ = model(A)
+    # _ = encoder.bn_normalize(A)
+    # _ = model(A)
+    # _ = encoder.bn_normalize(A)
+    # model.eval()
+    # encoder.eval()
+    # print(model(A))
+    # print("-" * 50)
+    # print(encoder.bn_normalize(A))
+    # return
+
+    ###################################################################################
+    ###################################################################################
+
     # command line arguments
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument('--batch', type=int)
@@ -361,6 +386,9 @@ def main():
         # Training
         se.train()
         de.train()
+
+        # TODO: Add volatile for the input parameters in training and validation
+
         for batch_idx, (data, target) in enumerate(train_loader):
             # pass through encoders
             data = data[:,0,:,:].numpy()
@@ -391,6 +419,7 @@ def main():
         # Evaluation
         se.eval()
         de.eval()
+
         agg_cost /= num_batches
         correct = 0.
         total = 0.
