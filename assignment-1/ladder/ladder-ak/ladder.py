@@ -256,6 +256,13 @@ class StackedEncoders(torch.nn.Module):
 
 
 def main():
+    # TODO IMPORTANT: maintain a different batch-normalization layer for the clean pass
+    # otherwise it will mess up the running means and variances for the noisy pass
+    # which have to be use in the final prediction. Note that although we do a 
+    # clean pass to get the reconstruction targets our supervised cost comes from the
+    # noisy pass but our prediction on validation and test set comes from the clean pass.
+    # TODO: Not so sure about the above clean and noisy pass. Test both versions.
+
     # command line arguments
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument('--batch', type=int)
