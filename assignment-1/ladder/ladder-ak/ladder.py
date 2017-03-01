@@ -181,7 +181,7 @@ class Encoder(torch.nn.Module):
         z_pre = self.linear(tilde_h)
         # store z_pre in buffer
         # TODO: Check whether you have to detach this or not.
-        self.buffer_z_pre = z_pre.detach().clone()
+        # self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
@@ -258,7 +258,7 @@ class StackedEncoders(torch.nn.Module):
 def main():
     # TODO IMPORTANT: maintain a different batch-normalization layer for the clean pass
     # otherwise it will mess up the running means and variances for the noisy pass
-    # which have to be use in the final prediction. Note that although we do a 
+    # which have to be used in the final prediction. Note that although we do a 
     # clean pass to get the reconstruction targets our supervised cost comes from the
     # noisy pass but our prediction on validation and test set comes from the clean pass.
     # TODO: Not so sure about the above clean and noisy pass. Test both versions.
