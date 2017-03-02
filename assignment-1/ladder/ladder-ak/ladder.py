@@ -50,6 +50,33 @@ class Ladder(torch.nn.Module):
         return self.de.bn_hat_z_layers(hat_z_layers, z_pre_layers)
 
 
+def evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
+                         num_batches, valid_loader, e, ind_labelled):
+    agg_cost_scaled = agg_cost / num_batches
+    agg_supervised_cost_scaled = agg_supervised_cost / num_batches
+    agg_unsupervised_cost_scaled = agg_unsupervised_cost / num_batches
+    correct = 0.
+    total = 0.
+    for batch_idx, (data, target) in enumerate(valid_loader):
+        data = data[:, 0, :, :].numpy()
+        data = data.reshape(data.shape[0], 28 * 28)
+        data = torch.FloatTensor(data)
+        data, target = Variable(data), Variable(target)
+        output = ladder.forward_encoders_clean(data)
+        output = output.data.numpy()
+        preds = np.argmax(output, axis=1)
+        target = target.data.numpy()
+        correct += np.sum(target == preds)
+        total += target.shape[0]
+
+    print("epoch", e + 1, ", ind_labelled:", ind_labelled,
+          ", total cost:", "{:.4f}".format(agg_cost_scaled),
+          ", supervised cost:", "{:.4f}".format(agg_supervised_cost_scaled),
+          ", unsupervised cost:", "{:.4f}".format(agg_unsupervised_cost_scaled),
+          ", validation accuracy:", correct / total)
+    print("")
+
+
 def main():
     # TODO IMPORTANT: maintain a different batch-normalization layer for the clean pass
     # otherwise it will mess up the running means and variances for the noisy pass
@@ -215,32 +242,23 @@ def main():
 
             num_batches += 1
 
+            if ind_labelled == len(train_labelled_data):
+                # Evaluation
+                ladder.eval()
+                evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
+                                     num_batches, valid_loader, e, ind_labelled)
+                # reset costs
+                agg_cost = 0.
+                agg_supervised_cost = 0.
+                agg_unsupervised_cost = 0.
+                num_batches = 0
+                ladder.train()
+
         # Evaluation
         ladder.eval()
-
-        agg_cost /= num_batches
-        agg_supervised_cost /= num_batches
-        agg_unsupervised_cost /= num_batches
-        correct = 0.
-        total = 0.
-        for batch_idx, (data, target) in enumerate(valid_loader):
-            data = data[:, 0, :, :].numpy()
-            data = data.reshape(data.shape[0], 28 * 28)
-            data = torch.FloatTensor(data)
-            data, target = Variable(data), Variable(target)
-            output = ladder.forward_encoders_clean(data)
-            output = output.data.numpy()
-            preds = np.argmax(output, axis=1)
-            target = target.data.numpy()
-            correct += np.sum(target == preds)
-            total += target.shape[0]
-
-        print("epoch", e + 1,
-              ", total cost:", "{:.4f}".format(agg_cost),
-              ", supervised cost:", "{:.4f}".format(agg_supervised_cost),
-              ", unsupervised cost:", "{:.4f}".format(agg_unsupervised_cost),
-              ", validation accuracy:", correct / total)
-        print("")
+        evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
+                             num_batches, valid_loader, e, ind_labelled)
+        ladder.train()
 
     print("=====================\n")
 
