@@ -40,7 +40,7 @@ class Ladder(torch.nn.Module):
         return self.se.get_encoders_z_pre(reverse)
 
     def get_encoder_tilde_z_bottom(self):
-        return self.se.buffer_tilde_z_bottom.clone()
+        return self.se.buffer_tilde_z_bottom
 
     def get_encoders_z(self, reverse=True):
         return self.se.get_encoders_z(reverse)
@@ -80,10 +80,10 @@ def main():
     print("======  Loading Data ======")
     with open("../../data/train_labeled.p") as f:
         train_dataset = pickle.load(f)
-    with open("../../data/train_unlabeled.p") as f:
-        unlabeled_dataset = pickle.load(f)
-    unlabeled_dataset.train_labels = torch.LongTensor(
-        [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
+    # with open("../../data/train_unlabeled.p") as f:
+    #     unlabeled_dataset = pickle.load(f)
+    # unlabeled_dataset.train_labels = torch.LongTensor(
+    #     [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
     with open("../../data/validation.p") as f:
         valid_dataset = pickle.load(f)
     print("===========================")
@@ -91,7 +91,7 @@ def main():
     loader_kwargs = {}
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
-    unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    # unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
     encoder_in = 28 * 28

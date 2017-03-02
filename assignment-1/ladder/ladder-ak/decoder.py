@@ -145,7 +145,7 @@ class StackedDecoders(torch.nn.Module):
             decoder = getattr(self.decoders, d_ref)
             tilde_z = tilde_z_layers[i]
             u = decoder.forward(tilde_z, u)
-            hat_z.append(decoder.buffer_hat_z_l.clone())
+            hat_z.append(decoder.buffer_hat_z_l)
         hat_z_bottom = self.bottom_decoder.forward(tilde_z_bottom, u)
         hat_z.append(hat_z_bottom)
         return hat_z
