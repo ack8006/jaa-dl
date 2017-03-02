@@ -35,7 +35,16 @@ class Ladder(torch.nn.Module):
         return self.de.forward(tilde_z_layers, encoder_output)
 
     def get_encoders_tilde_z(self, reverse=True):
-        return self.se.get_encoders_tilde_z(reverse=True)
+        return self.se.get_encoders_tilde_z(reverse)
+
+    def get_encoders_z_pre(self, reverse=True):
+        return self.se.get_encoders_z_pre(reverse)
+
+    def get_encoders_z(self, reverse=True):
+        return self.se.get_encoders_z(reverse)
+
+    def decoder_bn_hat_z_layers(self, hat_z_layers, z_pre_layers):
+        return self.de.bn_hat_z_layers(hat_z_layers, z_pre_layers)
 
 
 def main():
@@ -131,12 +140,21 @@ def main():
 
             # do a clean pass
             output_clean = ladder.forward_encoders_clean(data)
+            z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
+            z_layers = ladder.get_encoders_z(reverse=True)
 
             # pass through decoders
             hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise)
 
-            cost = loss_labelled.forward(output_noise, target)
-            cost.backward()
+            # batch normalize using mean, var of z_pe
+            bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
+
+            cost_supervised = loss_labelled.forward(output_noise, target)
+            cost_unsupervised = None
+
+            cost_supervised.backward()
+
+            cost = cost_supervised
             agg_cost += cost.data[0]
             optimizer.step()
             num_batches += 1

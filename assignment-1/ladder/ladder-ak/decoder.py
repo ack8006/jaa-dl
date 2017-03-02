@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch.nn.parameter import Parameter
+from torch.autograd import Variable
 
 
 class Decoder(torch.nn.Module):
@@ -92,3 +93,16 @@ class StackedDecoders(torch.nn.Module):
             u = decoder.forward(tilde_z, u)
             hat_z.append(decoder.buffer_hat_z_l)
         return hat_z
+
+    @staticmethod
+    def bn_hat_z_layers(hat_z_layers, z_pre_layers):
+        # TODO: @Alex, @Joe review this
+        hat_z_layers_normalized = []
+        for hat_z, z_pre in zip(hat_z_layers, z_pre_layers):
+            ones = Variable(torch.ones(z_pre.size()[0], 1))
+            mean = torch.mean(z_pre, 0)
+            var = np.var(z_pre.data.numpy(), axis=0).reshape(1, z_pre.size()[1])
+            var = Variable(torch.FloatTensor(var))
+            hat_z_normalized = torch.div(hat_z - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
+            hat_z_layers_normalized.append(hat_z_normalized)
+        return hat_z_layers_normalized

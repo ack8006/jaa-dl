@@ -40,22 +40,11 @@ class Encoder(torch.nn.Module):
         elif activation_type == 'softmax':
             self.activation = torch.nn.Softmax()
 
-        # buffer for z_pre which will be used in decoder cost
+        # buffer for z_pre, z which will be used in decoder cost
         self.buffer_z_pre = None
+        self.buffer_z = None
         # buffer for tilde_z which will be used by decoder for reconstruction
         self.buffer_tilde_z = None
-
-
-    def bn_normalize_z_pre(self, z, z_pre):
-        # TODO: @Alex, @Joe review this!
-        ones = Variable(torch.ones(z.size()[0], 1))
-        # mean and variance are calculated wrt z_pre
-        mean = torch.mean(z_pre, 0)
-        var = np.var(z_pre.data.numpy(), axis=0).reshape(1, z_pre.size()[1])
-        var = Variable(torch.FloatTensor(var))
-        # normalize z using mean and variance of z_pre
-        z_normalized = torch.div(z - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
-        return z_normalized
 
     def bn_gamma_beta(self, x):
         ones = Parameter(torch.ones(x.size()[0], 1))
@@ -66,11 +55,12 @@ class Encoder(torch.nn.Module):
 
     def forward_clean(self, h):
         z_pre = self.linear(h)
-        # Store z_pre to be used in calculation of reconstruction cost
-        self.buffer_z_pre = z_pre
+        # Store z_pre, z to be used in calculation of reconstruction cost
+        self.buffer_z_pre = z_pre.detach().clone()
         z = self.bn_normalize_clean(z_pre)
-        z = self.bn_gamma_beta(z)
-        h = self.activation(z)
+        self.buffer_z = z.detach().clone()
+        z_gb = self.bn_gamma_beta(z)
+        h = self.activation(z_gb)
         return h
 
     def forward_noise(self, tilde_h):
@@ -138,3 +128,23 @@ class StackedEncoders(torch.nn.Module):
         if reverse:
             tilde_z_layers.reverse()
         return tilde_z_layers
+
+    def get_encoders_z_pre(self, reverse=True):
+        z_pre_layers = []
+        for e_ref in self.encoders_ref:
+            encoder = getattr(self.encoders, e_ref)
+            z_pre = encoder.buffer_z_pre
+            z_pre_layers.append(z_pre)
+        if reverse:
+            z_pre_layers.reverse()
+        return z_pre_layers
+
+    def get_encoders_z(self, reverse=True):
+        z_layers = []
+        for e_ref in self.encoders_ref:
+            encoder = getattr(self.encoders, e_ref)
+            z = encoder.buffer_z
+            z_layers.append(z)
+        if reverse:
+            z_layers.reverse()
+        return z_layers
