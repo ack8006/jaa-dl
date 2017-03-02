@@ -93,6 +93,7 @@ def main():
     decoder_in = 10
     encoder_sizes = [1000, 500, 250, 250, 250, decoder_in]
     decoder_sizes = [250, 250, 250, 500, 1000, encoder_in]
+    unsupervised_costs_lambda = [0.1, 0.1, 0.1, 0.1, 0.1, 20., 2000.]
 
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "softmax"]
     # TODO: Verify whether you need affine for relu.
@@ -104,6 +105,7 @@ def main():
 
     optimizer = Adam(ladder.parameters(), lr=0.002)
     loss_labelled = torch.nn.CrossEntropyLoss()
+    loss_unsupervised = [torch.nn.MSELoss() for i in range(len(decoder_sizes) + 1)]
 
     print("")
     print("=======NETWORK=======")
@@ -112,12 +114,14 @@ def main():
 
     print("")
     print("=====================")
-    print("TRAINING")
+    print("TRAINING\n")
 
     # TODO: Add annealing of learning rate after 100 epochs
 
     for e in range(epochs):
         agg_cost = 0.
+        agg_supervised_cost = 0.
+        agg_unsupervised_cost = 0.
         num_batches = 0
 
         # Training
@@ -151,18 +155,29 @@ def main():
             hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
 
             z_pre_layers.append(data)
+            z_layers.append(data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
             # batch normalize using mean, var of z_pre
             bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
 
+            # calculate costs
             cost_supervised = loss_labelled.forward(output_noise, target)
-            cost_unsupervised = None
+            cost_unsupervised = 0.
+            assert (len(loss_unsupervised) == len(z_layers) and
+                    len(z_layers) == len(bn_hat_z_layers) and
+                    len(loss_unsupervised) == len(unsupervised_costs_lambda))
+            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, z_layers, bn_hat_z_layers):
+                c = cost_lambda * loss.forward(bn_hat_z, z)
+                cost_unsupervised += c
 
-            cost_supervised.backward()
+            # backprop
+            cost = cost_supervised + cost_unsupervised
+            cost.backward()
 
-            cost = cost_supervised
             agg_cost += cost.data[0]
+            agg_supervised_cost += cost_supervised.data[0]
+            agg_unsupervised_cost += cost_unsupervised.data[0]
             optimizer.step()
             num_batches += 1
 
@@ -170,6 +185,8 @@ def main():
         ladder.eval()
 
         agg_cost /= num_batches
+        agg_supervised_cost /= num_batches
+        agg_unsupervised_cost /= num_batches
         correct = 0.
         total = 0.
         for batch_idx, (data, target) in enumerate(valid_loader):
@@ -183,7 +200,13 @@ def main():
             target = target.data.numpy()
             correct += np.sum(target == preds)
             total += target.shape[0]
-        print("Epoch:", e + 1, "Cost:", agg_cost, "Validation Accuracy:", correct / total)
+
+        print("epoch", e + 1,
+              "total cost:", "{:.4f}".format(agg_cost),
+              "supervised cost:", "{:.4f}".format(agg_supervised_cost),
+              "unsupervised cost:", "{:.4f}".format(agg_unsupervised_cost),
+              "validation accuracy:", correct / total)
+        print("")
 
     print("=====================\n")
 
