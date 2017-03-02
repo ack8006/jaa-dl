@@ -106,14 +106,13 @@ class StackedDecoders(torch.nn.Module):
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, d_in, d_out, activation_type, train_bn_scaling,
-                 bias, add_noise, noise_level):
+    def __init__(self, d_in, d_out, activation_type,
+                 train_bn_scaling, bias, noise_level):
         super(Encoder, self).__init__()
         self.d_in = d_in
         self.d_out = d_out
         self.activation_type = activation_type
         self.train_bn_scaling = train_bn_scaling
-        self.add_noise = add_noise
         self.noise_level = noise_level
 
         # Encoder
@@ -125,6 +124,7 @@ class Encoder(torch.nn.Module):
         # For Relu Beta of batch-norm is redundant, hence only Gamma is trained
         # For Softmax Beta, Gamma are trained
         # batch-normalization bias
+        self.bn_normalize_clean = torch.nn.BatchNorm1d(d_out, affine=False)
         self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
         self.bn_beta = Parameter(torch.FloatTensor(1, d_out))
         self.bn_beta.data.zero_()
@@ -166,8 +166,10 @@ class Encoder(torch.nn.Module):
         return t
 
     def forward_clean(self, h):
-        t = self.linear(h)
-        z = self.bn_normalize(t)
+        z_pre = self.linear(h)
+        # Store z_pre to be used in calculation of reconstruction cost
+        self.buffer_z_pre = z_pre
+        z = self.bn_normalize_clean(z_pre)
         z = self.bn_gamma_beta(z)
         h = self.activation(z)
         return h
@@ -187,20 +189,13 @@ class Encoder(torch.nn.Module):
         h = self.activation(z)
         return h
 
-    def forward(self, h):
-        if self.add_noise:
-            return self.forward_noise(h)
-        else:
-            return self.forward_clean(h)
-
 
 class StackedEncoders(torch.nn.Module):
-    def __init__(self, d_in, d_encoders, activation_types, train_batch_norms,
-                 biases, add_noise, noise_std):
+    def __init__(self, d_in, d_encoders, activation_types,
+                 train_batch_norms, biases, noise_std):
         super(StackedEncoders, self).__init__()
         self.encoders_ref = []
         self.encoders = torch.nn.Sequential()
-        self.add_noise = add_noise
         self.noise_level = noise_std
         n_encoders = len(d_encoders)
         for i in range(n_encoders):
@@ -214,25 +209,25 @@ class StackedEncoders(torch.nn.Module):
             bias = biases[i]
             encoder_ref = "encoder_" + str(i)
             encoder = Encoder(d_input, d_output, activation, train_batch_norm,
-                              bias, add_noise=add_noise, noise_level=noise_std)
+                              bias, noise_level=noise_std)
             self.encoders_ref.append(encoder_ref)
             self.encoders.add_module(encoder_ref, encoder)
 
-    def forward_clean(self, x, save_z_pre=True):
-        raise NotImplementedError
+    def forward_clean(self, x):
+        h = x
+        for e_ref in self.encoders_ref:
+            encoder = getattr(self.encoders, e_ref)
+            h = encoder.forward_clean(h)
+        return h
 
-    def forward(self, x):
-        # add noise
-        if self.add_noise:
-            noise = np.random.normal(loc=0.0, scale=self.noise_level, size=x.size())
-            noise = Variable(torch.FloatTensor(noise))
-            h = x + noise
-        else:
-            h = x
+    def forward_noise(self, x):
+        noise = np.random.normal(loc=0.0, scale=self.noise_level, size=x.size())
+        noise = Variable(torch.FloatTensor(noise))
+        h = x + noise
         # pass through encoders
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
-            h = encoder.forward(h)
+            h = encoder.forward_noise(h)
         return h
 
     def get_encoders_tilde_z(self, reverse=True):
@@ -249,15 +244,17 @@ class StackedEncoders(torch.nn.Module):
 class Ladder(torch.nn.Module):
     def __init__(self, encoder_in, encoder_sizes, decoder_in, decoder_sizes,
                  encoder_activations, encoder_train_bn_scaling, encoder_bias,
-                 add_noise, noise_std):
+                 noise_std):
         super(Ladder, self).__init__()
         self.se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations,
-                                  encoder_train_bn_scaling, encoder_bias, add_noise,
-                                  noise_std)
+                                  encoder_train_bn_scaling, encoder_bias, noise_std)
         self.de = StackedDecoders(decoder_in, decoder_sizes)
 
-    def forward_encoders(self, data):
-        return self.se.forward(data)
+    def forward_encoders_clean(self, data):
+        return self.se.forward_clean(data)
+
+    def forward_encoders_noise(self, data):
+        return self.se.forward_noise(data)
 
     def forward_decoders(self, tilde_z_layers, encoder_output):
         return self.de.forward(tilde_z_layers, encoder_output)
@@ -287,12 +284,10 @@ def main():
     batch_size = args.batch
     epochs = args.epochs
     noise_std = args.noise_std
-    add_noise = True
 
     print("=====================")
     print("BATCH SIZE:", batch_size)
     print("EPOCHS:", epochs)
-    print("ADD NOISE:", add_noise)
     print("NOISE STD:", noise_std)
     print("=====================\n")
 
@@ -318,9 +313,8 @@ def main():
     encoder_train_bn_scaling = [False, False, False, False, False, True]
     encoder_bias = [False, False, False, False, False, False]
 
-    ladder = Ladder(encoder_in, encoder_sizes, decoder_in, decoder_sizes,
-                    encoder_activations, encoder_train_bn_scaling, encoder_bias,
-                    add_noise, noise_std)
+    ladder = Ladder(encoder_in, encoder_sizes, decoder_in, decoder_sizes, encoder_activations,
+                    encoder_train_bn_scaling, encoder_bias, noise_std)
 
     optimizer = Adam(ladder.parameters(), lr=0.002)
     loss_labelled = torch.nn.CrossEntropyLoss()
@@ -340,8 +334,6 @@ def main():
         agg_cost = 0.
         num_batches = 0
 
-        # TODO: Check if you have to reset bn parameters after every epoch
-
         # Training
         ladder.train()
 
@@ -357,14 +349,18 @@ def main():
             data, target = Variable(data), Variable(target)
 
             optimizer.zero_grad()
-            output = ladder.forward_encoders(data)
 
+            # do a noisy pass
+            output_noise = ladder.forward_encoders_noise(data)
             tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
 
-            # pass through decoders
-            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output)
+            # do a clean pass
+            output_clean = ladder.forward_encoders_clean(data)
 
-            cost = loss_labelled.forward(output, target)
+            # pass through decoders
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise)
+
+            cost = loss_labelled.forward(output_noise, target)
             cost.backward()
             agg_cost += cost.data[0]
             optimizer.step()
@@ -381,7 +377,7 @@ def main():
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
             data, target = Variable(data), Variable(target)
-            output = ladder.forward_encoders(data)
+            output = ladder.forward_encoders_clean(data)
             output = output.data.numpy()
             preds = np.argmax(output, axis=1)
             target = target.data.numpy()
