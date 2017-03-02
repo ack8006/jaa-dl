@@ -189,7 +189,11 @@ def main():
     n_classes = 10
     model = ConvNet(output_dim=n_classes, dropout=float(args['dropout']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
+    #optimizer = optim.SGD(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters())
+    #optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    #optimizer = optim.Adagrad(model.parameters())
+    #optimizer = optim.Adamax(model.parameters())
     batch_size = int(args['minibatch'])
 
     print('Creating Data Loaders')
