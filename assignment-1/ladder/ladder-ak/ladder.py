@@ -7,6 +7,7 @@ sys.path.append("/home/ak6179/jaa-dl/assignment-1/")
 import numpy as np
 import argparse
 import pickle
+import random
 
 import torch
 from torch.autograd import Variable
@@ -94,6 +95,10 @@ def main():
     # unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
+    train_labelled_data = []
+    for data, target in train_loader:
+        train_labelled_data.append((data, target))
+
     encoder_in = 28 * 28
     decoder_in = 10
     encoder_sizes = [1000, 500, 250, 250, 250, decoder_in]
@@ -124,6 +129,8 @@ def main():
     # TODO: Add annealing of learning rate after 100 epochs
 
     for e in range(epochs):
+        random.shuffle(train_labelled_data)
+
         agg_cost = 0.
         agg_supervised_cost = 0.
         agg_unsupervised_cost = 0.
@@ -134,7 +141,7 @@ def main():
 
         # TODO: Add volatile for the input parameters in training and validation
 
-        for batch_idx, (labeled_data, labeled_target) in enumerate(train_loader):
+        for batch_idx, (labeled_data, labeled_target) in enumerate(train_labelled_data):
 
             # ---------------------LABELED DATA---------------------
 
