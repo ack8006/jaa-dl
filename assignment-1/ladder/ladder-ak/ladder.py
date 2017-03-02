@@ -13,8 +13,6 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.optim import Adam
 
-epoch_global = -1
-
 
 class Decoder(torch.nn.Module):
     def __init__(self, d_in, d_out):
@@ -147,9 +145,7 @@ class Encoder(torch.nn.Module):
         self.buffer_z_pre = None
         # buffer for tilde_z which will be used by decoder for reconstruction
         self.buffer_tilde_z = None
-        # buffer for z_pre bn parameters to be used in cost calculation
-        self.buffer_z_pre_mean = None
-        self.buffer_z_pre_var = None
+
 
     def bn_normalize_z_pre(self, z, z_pre):
         # TODO: @Alex, @Joe review this!
@@ -179,9 +175,6 @@ class Encoder(torch.nn.Module):
     def forward_noise(self, tilde_h):
         # z_pre will be used in the decoder cost
         z_pre = self.linear(tilde_h)
-        # store z_pre in buffer
-        # TODO: Check whether you have to detach this or not.
-        # self.buffer_z_pre = z_pre.detach().clone()
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=z_pre_norm.size())
@@ -225,6 +218,9 @@ class StackedEncoders(torch.nn.Module):
             self.encoders_ref.append(encoder_ref)
             self.encoders.add_module(encoder_ref, encoder)
 
+    def forward_clean(self, x, save_z_pre=True):
+        raise NotImplementedError
+
     def forward(self, x):
         # add noise
         if self.add_noise:
@@ -249,10 +245,25 @@ class StackedEncoders(torch.nn.Module):
             tilde_z_layers.reverse()
         return tilde_z_layers
 
-    def reset_bn_encoders(self):
-        for e_ref in self.encoders_ref:
-            encoder = getattr(self.encoders, e_ref)
-            encoder.reset_bn()
+
+class Ladder(torch.nn.Module):
+    def __init__(self, encoder_in, encoder_sizes, decoder_in, decoder_sizes,
+                 encoder_activations, encoder_train_bn_scaling, encoder_bias,
+                 add_noise, noise_std):
+        super(Ladder, self).__init__()
+        self.se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations,
+                                  encoder_train_bn_scaling, encoder_bias, add_noise,
+                                  noise_std)
+        self.de = StackedDecoders(decoder_in, decoder_sizes)
+
+    def forward_encoders(self, data):
+        return self.se.forward(data)
+
+    def forward_decoders(self, tilde_z_layers, encoder_output):
+        return self.de.forward(tilde_z_layers, encoder_output)
+
+    def get_encoders_tilde_z(self, reverse=True):
+        return self.se.get_encoders_tilde_z(reverse=True)
 
 
 def main():
@@ -261,7 +272,10 @@ def main():
     # which have to be used in the final prediction. Note that although we do a 
     # clean pass to get the reconstruction targets our supervised cost comes from the
     # noisy pass but our prediction on validation and test set comes from the clean pass.
+    
     # TODO: Not so sure about the above clean and noisy pass. Test both versions.
+
+    # TODO: Don't batch normalize using z_pre in the first decoder
 
     # command line arguments
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
@@ -304,17 +318,16 @@ def main():
     encoder_train_bn_scaling = [False, False, False, False, False, True]
     encoder_bias = [False, False, False, False, False, False]
 
-    se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations, encoder_train_bn_scaling,
-                         encoder_bias, add_noise, noise_std)
+    ladder = Ladder(encoder_in, encoder_sizes, decoder_in, decoder_sizes,
+                    encoder_activations, encoder_train_bn_scaling, encoder_bias,
+                    add_noise, noise_std)
 
-    de = StackedDecoders(decoder_in, decoder_sizes)
-
-    optimizer = Adam(se.parameters(), lr=0.002)
+    optimizer = Adam(ladder.parameters(), lr=0.002)
     loss_labelled = torch.nn.CrossEntropyLoss()
 
     print("")
     print("=======NETWORK=======")
-    print(se)
+    print(ladder)
     print("=====================")
 
     print("")
@@ -323,19 +336,14 @@ def main():
 
     # TODO: Add annealing of learning rate after 100 epochs
 
-    global epoch_global
-
     for e in range(epochs):
         agg_cost = 0.
         num_batches = 0
 
-        epoch_global = e
-
         # TODO: Check if you have to reset bn parameters after every epoch
 
         # Training
-        se.train()
-        de.train()
+        ladder.train()
 
         # TODO: Add volatile for the input parameters in training and validation
 
@@ -349,12 +357,12 @@ def main():
             data, target = Variable(data), Variable(target)
 
             optimizer.zero_grad()
-            output = se.forward(data)
+            output = ladder.forward_encoders(data)
 
-            tilde_z_layers = se.get_encoders_tilde_z(reverse=True)
+            tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
 
             # pass through decoders
-            hat_z_layers = de.forward(tilde_z_layers, output)
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output)
 
             cost = loss_labelled.forward(output, target)
             cost.backward()
@@ -362,13 +370,8 @@ def main():
             optimizer.step()
             num_batches += 1
 
-        print("*" * 50)
-        print("EVALUATING NOW")
-        print("*" * 50)
-
         # Evaluation
-        se.eval()
-        de.eval()
+        ladder.eval()
 
         agg_cost /= num_batches
         correct = 0.
@@ -378,7 +381,7 @@ def main():
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
             data, target = Variable(data), Variable(target)
-            output = se.forward(data)
+            output = ladder.forward_encoders(data)
             output = output.data.numpy()
             preds = np.argmax(output, axis=1)
             target = target.data.numpy()
