@@ -83,6 +83,7 @@ class StackedEncoders(torch.nn.Module):
     def __init__(self, d_in, d_encoders, activation_types,
                  train_batch_norms, biases, noise_std):
         super(StackedEncoders, self).__init__()
+        self.buffer_tilde_z_bottom = None
         self.encoders_ref = []
         self.encoders = torch.nn.Sequential()
         self.noise_level = noise_std
@@ -113,6 +114,7 @@ class StackedEncoders(torch.nn.Module):
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=x.size())
         noise = Variable(torch.FloatTensor(noise))
         h = x + noise
+        self.buffer_tilde_z_bottom = h.clone()
         # pass through encoders
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)

@@ -17,13 +17,12 @@ from decoder import StackedDecoders
 
 
 class Ladder(torch.nn.Module):
-    def __init__(self, encoder_in, encoder_sizes, decoder_in, decoder_sizes,
-                 encoder_activations, encoder_train_bn_scaling, encoder_bias,
-                 noise_std):
+    def __init__(self, encoder_in, encoder_sizes, decoder_in, decoder_sizes, image_size,
+                 encoder_activations, encoder_train_bn_scaling, encoder_bias, noise_std):
         super(Ladder, self).__init__()
         self.se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations,
                                   encoder_train_bn_scaling, encoder_bias, noise_std)
-        self.de = StackedDecoders(decoder_in, decoder_sizes)
+        self.de = StackedDecoders(decoder_in, decoder_sizes, image_size)
 
     def forward_encoders_clean(self, data):
         return self.se.forward_clean(data)
@@ -31,14 +30,17 @@ class Ladder(torch.nn.Module):
     def forward_encoders_noise(self, data):
         return self.se.forward_noise(data)
 
-    def forward_decoders(self, tilde_z_layers, encoder_output):
-        return self.de.forward(tilde_z_layers, encoder_output)
+    def forward_decoders(self, tilde_z_layers, encoder_output, tilde_z_bottom):
+        return self.de.forward(tilde_z_layers, encoder_output, tilde_z_bottom)
 
     def get_encoders_tilde_z(self, reverse=True):
         return self.se.get_encoders_tilde_z(reverse)
 
     def get_encoders_z_pre(self, reverse=True):
         return self.se.get_encoders_z_pre(reverse)
+
+    def get_encoder_tilde_z_bottom(self):
+        return self.se.buffer_tilde_z_bottom
 
     def get_encoders_z(self, reverse=True):
         return self.se.get_encoders_z(reverse)
@@ -97,8 +99,8 @@ def main():
     encoder_train_bn_scaling = [False, False, False, False, False, True]
     encoder_bias = [False, False, False, False, False, False]
 
-    ladder = Ladder(encoder_in, encoder_sizes, decoder_in, decoder_sizes, encoder_activations,
-                    encoder_train_bn_scaling, encoder_bias, noise_std)
+    ladder = Ladder(encoder_in, encoder_sizes, decoder_in, decoder_sizes, encoder_in,
+                    encoder_activations, encoder_train_bn_scaling, encoder_bias, noise_std)
 
     optimizer = Adam(ladder.parameters(), lr=0.002)
     loss_labelled = torch.nn.CrossEntropyLoss()
@@ -143,10 +145,15 @@ def main():
             z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
             z_layers = ladder.get_encoders_z(reverse=True)
 
-            # pass through decoders
-            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise)
+            tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
 
-            # batch normalize using mean, var of z_pe
+            # pass through decoders
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
+
+            z_pre_layers.append(data)
+
+            # TODO: Verify if you have to batch-normalize the bottom-most layer also
+            # batch normalize using mean, var of z_pre
             bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
 
             cost_supervised = loss_labelled.forward(output_noise, target)
