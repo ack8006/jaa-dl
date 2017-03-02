@@ -81,10 +81,10 @@ def main():
     print("======  Loading Data ======")
     with open("../../data/train_labeled.p") as f:
         train_dataset = pickle.load(f)
-    # with open("../../data/train_unlabeled.p") as f:
-    #     unlabeled_dataset = pickle.load(f)
-    # unlabeled_dataset.train_labels = torch.LongTensor(
-    #     [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
+    with open("../../data/train_unlabeled.p") as f:
+        unlabeled_dataset = pickle.load(f)
+    unlabeled_dataset.train_labels = torch.LongTensor(
+        [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
     with open("../../data/validation.p") as f:
         valid_dataset = pickle.load(f)
     print("===========================")
@@ -92,7 +92,7 @@ def main():
     loader_kwargs = {}
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
-    # unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
     train_labelled_data = []
@@ -129,8 +129,6 @@ def main():
     # TODO: Add annealing of learning rate after 100 epochs
 
     for e in range(epochs):
-        random.shuffle(train_labelled_data)
-
         agg_cost = 0.
         agg_supervised_cost = 0.
         agg_unsupervised_cost = 0.
@@ -141,48 +139,67 @@ def main():
 
         # TODO: Add volatile for the input parameters in training and validation
 
-        for batch_idx, (labeled_data, labeled_target) in enumerate(train_labelled_data):
+        ind_labelled = 0
 
-            # ---------------------LABELED DATA---------------------
+        for batch_idx, (unlabeled_data, unlabeled_target) in enumerate(unlabeled_loader):
+
+            # Labelled data
+            if ind_labelled == len(train_labelled_data):
+                # reset counter
+                random.shuffle(train_labelled_data)
+                ind_labelled = 0
+            labelled_data = train_labelled_data[ind_labelled][0]
+            labelled_target = train_labelled_data[ind_labelled][1]
+            ind_labelled += 1
+
+            labelled_data_size = labelled_data.size()[0]
+
+            data = np.concatenate((labelled_data.numpy(), unlabeled_data.numpy()), axis=0)
+            target = np.concatenate((labelled_target.numpy(), unlabeled_target.numpy()), axis=0)
+
+            data = torch.FloatTensor(data)
+            target = torch.LongTensor(target)
 
             # pass through encoders
-            labeled_data = labeled_data[:,0,:,:].numpy()
-            labeled_data = labeled_data.reshape(labeled_data.shape[0], 28 * 28)
-            labeled_data = torch.FloatTensor(labeled_data)
+            data = data[:,0,:,:].numpy()
+            data = data.reshape(data.shape[0], 28 * 28)
+            data = torch.FloatTensor(data)
             # TODO: Hold off on this, things should work right now because LongTensor is only used for cost.
             # TODO: Change from LongTensor to FloatTensor. Autograd has a bug with LongTensor.
-            labeled_data, labeled_target = Variable(labeled_data), Variable(labeled_target)
+            data, target = Variable(data), Variable(target)
+
+            # Pass data through the network
 
             optimizer.zero_grad()
 
             # do a noisy pass
-            labeled_output_noise = ladder.forward_encoders_noise(labeled_data)
-            labeled_tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
+            output_noise = ladder.forward_encoders_noise(data)
+            tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
 
             # do a clean pass
-            labeled_output_clean = ladder.forward_encoders_clean(labeled_data)
-            labeled_z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
-            labeled_z_layers = ladder.get_encoders_z(reverse=True)
+            output_clean = ladder.forward_encoders_clean(data)
+            z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
+            z_layers = ladder.get_encoders_z(reverse=True)
 
-            labeled_tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
+            tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
 
             # pass through decoders
-            labeled_hat_z_layers = ladder.forward_decoders(labeled_tilde_z_layers, labeled_output_noise, labeled_tilde_z_bottom)
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
 
-            labeled_z_pre_layers.append(labeled_data)
-            labeled_z_layers.append(labeled_data)
+            z_pre_layers.append(data)
+            z_layers.append(data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
             # batch normalize using mean, var of z_pre
-            labeled_bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(labeled_hat_z_layers, labeled_z_pre_layers)
+            bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
 
             # calculate costs
-            cost_supervised = loss_labelled.forward(labeled_output_noise, labeled_target)
+            cost_supervised = loss_labelled.forward(output_noise[:labelled_data_size], target[:labelled_data_size])
             cost_unsupervised = 0.
-            assert (len(loss_unsupervised) == len(labeled_z_layers) and
-                    len(labeled_z_layers) == len(labeled_bn_hat_z_layers) and
+            assert (len(loss_unsupervised) == len(z_layers) and
+                    len(z_layers) == len(bn_hat_z_layers) and
                     len(loss_unsupervised) == len(unsupervised_costs_lambda))
-            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, labeled_z_layers, labeled_bn_hat_z_layers):
+            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, z_layers, bn_hat_z_layers):
                 c = cost_lambda * loss.forward(bn_hat_z, z)
                 cost_unsupervised += c
 
@@ -197,8 +214,6 @@ def main():
             optimizer.step()
 
             num_batches += 1
-
-            # ---------------------UNLABELED DATA---------------------
 
         # Evaluation
         ladder.eval()
@@ -221,10 +236,10 @@ def main():
             total += target.shape[0]
 
         print("epoch", e + 1,
-              "total cost:", "{:.4f}".format(agg_cost),
-              "supervised cost:", "{:.4f}".format(agg_supervised_cost),
-              "unsupervised cost:", "{:.4f}".format(agg_unsupervised_cost),
-              "validation accuracy:", correct / total)
+              ", total cost:", "{:.4f}".format(agg_cost),
+              ", supervised cost:", "{:.4f}".format(agg_supervised_cost),
+              ", unsupervised cost:", "{:.4f}".format(agg_unsupervised_cost),
+              ", validation accuracy:", correct / total)
         print("")
 
     print("=====================\n")
