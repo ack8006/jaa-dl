@@ -40,7 +40,7 @@ class Ladder(torch.nn.Module):
         return self.se.get_encoders_z_pre(reverse)
 
     def get_encoder_tilde_z_bottom(self):
-        return self.se.buffer_tilde_z_bottom
+        return self.se.buffer_tilde_z_bottom.clone()
 
     def get_encoders_z(self, reverse=True):
         return self.se.get_encoders_z(reverse)
@@ -55,7 +55,7 @@ def main():
     # which have to be used in the final prediction. Note that although we do a 
     # clean pass to get the reconstruction targets our supervised cost comes from the
     # noisy pass but our prediction on validation and test set comes from the clean pass.
-    
+
     # TODO: Not so sure about the above clean and noisy pass. Test both versions.
 
     # TODO: Don't batch normalize using z_pre in the first decoder
@@ -80,6 +80,10 @@ def main():
     print("======  Loading Data ======")
     with open("../../data/train_labeled.p") as f:
         train_dataset = pickle.load(f)
+    with open("../../data/train_unlabeled.p") as f:
+        unlabeled_dataset = pickle.load(f)
+    unlabeled_dataset.train_labels = torch.LongTensor(
+        [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
     with open("../../data/validation.p") as f:
         valid_dataset = pickle.load(f)
     print("===========================")
@@ -87,6 +91,7 @@ def main():
     loader_kwargs = {}
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
     encoder_in = 28 * 28
@@ -129,45 +134,48 @@ def main():
 
         # TODO: Add volatile for the input parameters in training and validation
 
-        for batch_idx, (data, target) in enumerate(train_loader):
+        for batch_idx, (labeled_data, labeled_target) in enumerate(train_loader):
+
+            # ---------------------LABELED DATA---------------------
+
             # pass through encoders
-            data = data[:,0,:,:].numpy()
-            data = data.reshape(data.shape[0], 28 * 28)
-            data = torch.FloatTensor(data)
+            labeled_data = labeled_data[:,0,:,:].numpy()
+            labeled_data = labeled_data.reshape(labeled_data.shape[0], 28 * 28)
+            labeled_data = torch.FloatTensor(labeled_data)
             # TODO: Hold off on this, things should work right now because LongTensor is only used for cost.
             # TODO: Change from LongTensor to FloatTensor. Autograd has a bug with LongTensor.
-            data, target = Variable(data), Variable(target)
+            labeled_data, labeled_target = Variable(labeled_data), Variable(labeled_target)
 
             optimizer.zero_grad()
 
             # do a noisy pass
-            output_noise = ladder.forward_encoders_noise(data)
-            tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
+            labeled_output_noise = ladder.forward_encoders_noise(labeled_data)
+            labeled_tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
 
             # do a clean pass
-            output_clean = ladder.forward_encoders_clean(data)
-            z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
-            z_layers = ladder.get_encoders_z(reverse=True)
+            labeled_output_clean = ladder.forward_encoders_clean(labeled_data)
+            labeled_z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
+            labeled_z_layers = ladder.get_encoders_z(reverse=True)
 
-            tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
+            labeled_tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
 
             # pass through decoders
-            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
+            labeled_hat_z_layers = ladder.forward_decoders(labeled_tilde_z_layers, labeled_output_noise, labeled_tilde_z_bottom)
 
-            z_pre_layers.append(data)
-            z_layers.append(data)
+            labeled_z_pre_layers.append(labeled_data)
+            labeled_z_layers.append(labeled_data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
             # batch normalize using mean, var of z_pre
-            bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
+            labeled_bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(labeled_hat_z_layers, labeled_z_pre_layers)
 
             # calculate costs
-            cost_supervised = loss_labelled.forward(output_noise, target)
+            cost_supervised = loss_labelled.forward(labeled_output_noise, labeled_target)
             cost_unsupervised = 0.
-            assert (len(loss_unsupervised) == len(z_layers) and
-                    len(z_layers) == len(bn_hat_z_layers) and
+            assert (len(loss_unsupervised) == len(labeled_z_layers) and
+                    len(labeled_z_layers) == len(labeled_bn_hat_z_layers) and
                     len(loss_unsupervised) == len(unsupervised_costs_lambda))
-            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, z_layers, bn_hat_z_layers):
+            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, labeled_z_layers, labeled_bn_hat_z_layers):
                 c = cost_lambda * loss.forward(bn_hat_z, z)
                 cost_unsupervised += c
 
@@ -178,8 +186,12 @@ def main():
             agg_cost += cost.data[0]
             agg_supervised_cost += cost_supervised.data[0]
             agg_unsupervised_cost += cost_unsupervised.data[0]
+
             optimizer.step()
+
             num_batches += 1
+
+            # ---------------------UNLABELED DATA---------------------
 
         # Evaluation
         ladder.eval()
