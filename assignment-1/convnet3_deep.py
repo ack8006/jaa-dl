@@ -202,9 +202,14 @@ def main():
 
     print('Training Fun Time!!!')
     for i in range(epochs):
+        #Training Mode
+        model.train()
         cost = 0.
         for ind, (data, label) in enumerate(train_loader):
             cost += train(model, loss, optimizer, data, label[:,0])
+
+        #Prediction Mode
+        model.eval()
         predY = predict(model, valid_data)
         pred_train_y = predict(model, train_data)
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
