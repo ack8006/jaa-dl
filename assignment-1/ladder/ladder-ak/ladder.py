@@ -24,7 +24,6 @@ class Ladder(torch.nn.Module):
         self.se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations,
                                   encoder_train_bn_scaling, encoder_bias, noise_std)
         self.de = StackedDecoders(decoder_in, decoder_sizes, image_size)
-        self.bn_input_image = torch.nn.BatchNorm1d(image_size, affine=False)
 
     def forward_encoders_clean(self, data):
         return self.se.forward_clean(data)
@@ -32,14 +31,17 @@ class Ladder(torch.nn.Module):
     def forward_encoders_noise(self, data):
         return self.se.forward_noise(data)
 
-    def forward_decoders(self, tilde_z_layers, encoder_output):
-        return self.de.forward(tilde_z_layers, encoder_output)
+    def forward_decoders(self, tilde_z_layers, encoder_output, tilde_z_bottom):
+        return self.de.forward(tilde_z_layers, encoder_output, tilde_z_bottom)
 
     def get_encoders_tilde_z(self, reverse=True):
         return self.se.get_encoders_tilde_z(reverse)
 
     def get_encoders_z_pre(self, reverse=True):
         return self.se.get_encoders_z_pre(reverse)
+
+    def get_encoder_tilde_z_bottom(self):
+        return self.se.buffer_tilde_z_bottom
 
     def get_encoders_z(self, reverse=True):
         return self.se.get_encoders_z(reverse)
@@ -78,7 +80,7 @@ def evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised
 def main():
     # TODO IMPORTANT: maintain a different batch-normalization layer for the clean pass
     # otherwise it will mess up the running means and variances for the noisy pass
-    # which have to be used in the final prediction. Note that although we do a 
+    # which have to be used in the final prediction. Note that although we do a
     # clean pass to get the reconstruction targets our supervised cost comes from the
     # noisy pass but our prediction on validation and test set comes from the clean pass.
 
@@ -140,7 +142,7 @@ def main():
 
     optimizer = Adam(ladder.parameters(), lr=0.002)
     loss_labelled = torch.nn.CrossEntropyLoss()
-    loss_unsupervised = torch.nn.MSELoss()
+    loss_unsupervised = [torch.nn.MSELoss() for i in range(len(decoder_sizes) + 1)]
 
     print("")
     print("=======NETWORK=======")
@@ -161,6 +163,8 @@ def main():
 
         # Training
         ladder.train()
+
+        # TODO: Add volatile for the input parameters in training and validation
 
         ind_labelled = 0
 
@@ -199,31 +203,30 @@ def main():
             tilde_z_layers = ladder.get_encoders_tilde_z(reverse=True)
 
             # do a clean pass
-            _ = ladder.forward_encoders_clean(data)
+            output_clean = ladder.forward_encoders_clean(data)
             z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
             z_layers = ladder.get_encoders_z(reverse=True)
 
+            tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
+
             # pass through decoders
-            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise)
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
 
             z_pre_layers.append(data)
+            z_layers.append(data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
-
-            # batch normalizing the image also for cost comparison
-            bn_data = ladder.bn_input_image(data)
-            z_layers.append(bn_data)
-
             # batch normalize using mean, var of z_pre
             bn_hat_z_layers = ladder.decoder_bn_hat_z_layers(hat_z_layers, z_pre_layers)
-
-            assert len(z_layers) == len(bn_hat_z_layers)
 
             # calculate costs
             cost_supervised = loss_labelled.forward(output_noise[:labelled_data_size], target[:labelled_data_size])
             cost_unsupervised = 0.
-            for cost_lambda, z, bn_hat_z in zip(unsupervised_costs_lambda, z_layers, bn_hat_z_layers):
-                c = cost_lambda * loss_unsupervised.forward(bn_hat_z, z)
+            assert (len(loss_unsupervised) == len(z_layers) and
+                    len(z_layers) == len(bn_hat_z_layers) and
+                    len(loss_unsupervised) == len(unsupervised_costs_lambda))
+            for cost_lambda, loss, z, bn_hat_z in zip(unsupervised_costs_lambda, loss_unsupervised, z_layers, bn_hat_z_layers):
+                c = cost_lambda * loss.forward(bn_hat_z, z)
                 cost_unsupervised += c
 
             # backprop
