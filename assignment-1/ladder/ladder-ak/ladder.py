@@ -187,7 +187,6 @@ def main():
             data = torch.FloatTensor(data)
             target = torch.LongTensor(target)
 
-            # pass through encoders
             data = data[:,0,:,:].numpy()
             data = data.reshape(data.shape[0], 28 * 28)
             data = torch.FloatTensor(data)
