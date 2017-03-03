@@ -32,17 +32,14 @@ class Ladder(torch.nn.Module):
     def forward_encoders_noise(self, data):
         return self.se.forward_noise(data)
 
-    def forward_decoders(self, tilde_z_layers, encoder_output, tilde_z_bottom):
-        return self.de.forward(tilde_z_layers, encoder_output, tilde_z_bottom)
+    def forward_decoders(self, tilde_z_layers, encoder_output):
+        return self.de.forward(tilde_z_layers, encoder_output)
 
     def get_encoders_tilde_z(self, reverse=True):
         return self.se.get_encoders_tilde_z(reverse)
 
     def get_encoders_z_pre(self, reverse=True):
         return self.se.get_encoders_z_pre(reverse)
-
-    def get_encoder_tilde_z_bottom(self):
-        return self.se.buffer_tilde_z_bottom
 
     def get_encoders_z(self, reverse=True):
         return self.se.get_encoders_z(reverse)
@@ -165,8 +162,6 @@ def main():
         # Training
         ladder.train()
 
-        # TODO: Add volatile for the input parameters in training and validation
-
         ind_labelled = 0
 
         for batch_idx, (unlabeled_data, unlabeled_target) in enumerate(unlabeled_loader):
@@ -208,10 +203,8 @@ def main():
             z_pre_layers = ladder.get_encoders_z_pre(reverse=True)
             z_layers = ladder.get_encoders_z(reverse=True)
 
-            tilde_z_bottom = ladder.get_encoder_tilde_z_bottom()
-
             # pass through decoders
-            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
+            hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise)
 
             z_pre_layers.append(data)
 

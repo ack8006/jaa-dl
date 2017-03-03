@@ -123,6 +123,7 @@ class StackedEncoders(torch.nn.Module):
 
     def get_encoders_tilde_z(self, reverse=True):
         tilde_z_layers = []
+        tilde_z_layers.append(self.buffer_tilde_z_bottom)
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
             tilde_z = encoder.buffer_tilde_z
