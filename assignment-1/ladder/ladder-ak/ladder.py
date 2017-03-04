@@ -16,6 +16,8 @@ from torch.optim import Adam
 from encoder import StackedEncoders
 from decoder import StackedDecoders
 
+import input_data
+
 
 class Ladder(torch.nn.Module):
     def __init__(self, encoder_in, encoder_sizes, decoder_in, decoder_sizes, image_size,
@@ -24,6 +26,7 @@ class Ladder(torch.nn.Module):
         self.se = StackedEncoders(encoder_in, encoder_sizes, encoder_activations,
                                   encoder_train_bn_scaling, encoder_bias, noise_std)
         self.de = StackedDecoders(decoder_in, decoder_sizes, image_size)
+        self.bn_image = torch.nn.BatchNorm1d(image_size, affine=False)
 
     def forward_encoders_clean(self, data):
         return self.se.forward_clean(data)
@@ -105,32 +108,41 @@ def main():
     print("NOISE STD:", noise_std)
     print("=====================\n")
 
-    print("======  Loading Data ======")
-    with open("../../data/train_labeled.p") as f:
-        train_dataset = pickle.load(f)
-    with open("../../data/train_unlabeled.p") as f:
-        unlabeled_dataset = pickle.load(f)
-    unlabeled_dataset.train_labels = torch.LongTensor(
-        [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
-    with open("../../data/validation.p") as f:
-        valid_dataset = pickle.load(f)
-    print("===========================")
+    # print("======  Loading Data ======")
+    # with open("../../data/train_labeled.p") as f:
+    #     train_dataset = pickle.load(f)
+    # with open("../../data/train_unlabeled.p") as f:
+    #     unlabeled_dataset = pickle.load(f)
+    # unlabeled_dataset.train_labels = torch.LongTensor(
+    #     [-1 for x in range(unlabeled_dataset.train_data.size()[0])])
+    # with open("../../data/validation.p") as f:
+    #     valid_dataset = pickle.load(f)
+    # print("===========================")
 
-    loader_kwargs = {}
+    num_labeled = 3000
+    mnist_data_dir = "/Users/abhishekkadian/Documents/Github/jaa-dl/assignment-1/ladder/ladder-ak/data/mnist"
+    mnist = input_data.read_data_sets(mnist_data_dir, n_labeled=num_labeled, one_hot=True)
+    mnist.train.shuffle_data()
+    # images, labels = mnist.train.next_batch(batch_size)
+    # print(images.shape, labels.shape)
+    # print(np.argmax(labels, axis=1).shape)
+    # return
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
-    unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
-
-    train_labelled_data = []
-    for data, target in train_loader:
-        train_labelled_data.append((data, target))
+    # loader_kwargs = {}
+    #
+    # train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    # unlabeled_loader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=batch_size, shuffle=True, **loader_kwargs)
+    # valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
+    #
+    # train_labelled_data = []
+    # for data, target in train_loader:
+    #     train_labelled_data.append((data, target))
 
     encoder_in = 28 * 28
     decoder_in = 10
     encoder_sizes = [1000, 500, 250, 250, 250, decoder_in]
     decoder_sizes = [250, 250, 250, 500, 1000, encoder_in]
-    unsupervised_costs_lambda = [0.1, 0.1, 0.1, 0.1, 0.1, 20., 2000.]
+    unsupervised_costs_lambda = [0.1, 0.1, 0.1, 0.1, 0.1, 10., 1000.]
 
     encoder_activations = ["relu", "relu", "relu", "relu", "relu", "softmax"]
     # TODO: Verify whether you need affine for relu.
@@ -168,28 +180,36 @@ def main():
 
         ind_labelled = 0
 
-        for batch_idx, (unlabeled_data, unlabeled_target) in enumerate(unlabeled_loader):
+        # for batch_idx, (unlabeled_data, unlabeled_target) in enumerate(unlabeled_loader):
+        for inner_e in xrange((60000 - num_labeled + batch_size - 1) / batch_size):
 
-            # Labelled data
-            if ind_labelled == len(train_labelled_data):
-                # reset counter
-                random.shuffle(train_labelled_data)
-                ind_labelled = 0
-            labelled_data = train_labelled_data[ind_labelled][0]
-            labelled_target = train_labelled_data[ind_labelled][1]
-            ind_labelled += 1
+            # # Labelled data
+            # if ind_labelled == len(train_labelled_data):
+            #     # reset counter
+            #     random.shuffle(train_labelled_data)
+            #     ind_labelled = 0
+            # labelled_data = train_labelled_data[ind_labelled][0]
+            # labelled_target = train_labelled_data[ind_labelled][1]
+            # ind_labelled += 1
+            #
+            # labelled_data_size = labelled_data.size()[0]
+            #
+            # data = np.concatenate((labelled_data.numpy(), unlabeled_data.numpy()), axis=0)
+            # target = np.concatenate((labelled_target.numpy(), unlabeled_target.numpy()), axis=0)
 
-            labelled_data_size = labelled_data.size()[0]
+            images, labels = mnist.train.next_batch(batch_size)
+            labels = np.argmax(labels, axis=1)
+            labelled_data_size = labels.shape[0]
+            dummy_labels = np.array([-1 for i in range(batch_size)])
+            labels = np.concatenate((labels, dummy_labels))
 
-            data = np.concatenate((labelled_data.numpy(), unlabeled_data.numpy()), axis=0)
-            target = np.concatenate((labelled_target.numpy(), unlabeled_target.numpy()), axis=0)
+            # data = torch.FloatTensor(data)
+            data = torch.FloatTensor(images)
+            target = torch.LongTensor(labels)
 
-            data = torch.FloatTensor(data)
-            target = torch.LongTensor(target)
-
-            data = data[:,0,:,:].numpy()
-            data = data.reshape(data.shape[0], 28 * 28)
-            data = torch.FloatTensor(data)
+            # data = data[:,0,:,:].numpy()
+            # data = data.reshape(data.shape[0], 28 * 28)
+            # data = torch.FloatTensor(data)
             # TODO: Hold off on this, things should work right now because LongTensor is only used for cost.
             # TODO: Change from LongTensor to FloatTensor. Autograd has a bug with LongTensor.
             data, target = Variable(data), Variable(target)
@@ -212,8 +232,11 @@ def main():
             # pass through decoders
             hat_z_layers = ladder.forward_decoders(tilde_z_layers, output_noise, tilde_z_bottom)
 
+            # TODO: add some noise to data
             z_pre_layers.append(data)
-            z_layers.append(data)
+
+            bn_data = ladder.bn_image(data) # batch-normalize image
+            z_layers.append(bn_data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
             # batch normalize using mean, var of z_pre
@@ -241,11 +264,33 @@ def main():
 
             num_batches += 1
 
-            if ind_labelled == len(train_labelled_data):
+            if inner_e % (num_labeled / batch_size) == 0:
+            # if ind_labelled == len(train_labelled_data):
                 # Evaluation
                 ladder.eval()
-                evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
-                                     num_batches, valid_loader, e, ind_labelled)
+            #     evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
+            #                          num_batches, valid_loader, e, ind_labelled)
+
+                test_images, test_labels = mnist.test.images, mnist.test.labels
+                test_labels = np.argmax(test_labels, axis=1)
+                test_data = torch.FloatTensor(test_images)
+                test_target = torch.FloatTensor(test_labels)
+                test_data, test_target = Variable(test_data), Variable(test_target)
+
+                output = ladder.forward_encoders_clean(test_data)
+
+                output = output.data.numpy()
+                preds = np.argmax(output, axis=1)
+                test_target = test_target.data.numpy()
+                correct = np.sum(test_target == preds)
+                total = test_target.shape[0]
+
+                print("Epoch:", e,
+                      "Aggregate cost:", agg_cost / num_batches,
+                      "Supervised cost:", agg_supervised_cost / num_batches,
+                      "Unsupervised cost:", agg_unsupervised_cost / num_batches,
+                      "Test accuracy:", float(correct) / total)
+
                 # reset costs
                 agg_cost = 0.
                 agg_supervised_cost = 0.
@@ -254,10 +299,10 @@ def main():
                 ladder.train()
 
         # Evaluation
-        ladder.eval()
-        evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
-                             num_batches, valid_loader, e, ind_labelled)
-        ladder.train()
+        # ladder.eval()
+        # evaluate_performance(ladder, agg_cost, agg_supervised_cost, agg_unsupervised_cost,
+        #                      num_batches, valid_loader, e, ind_labelled)
+        # ladder.train()
 
     print("=====================\n")
 
