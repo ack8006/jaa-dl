@@ -152,7 +152,7 @@ def main():
         model.train()
         cost = 0.
         for ind, (data, label) in enumerate(train_loader):
-            cost += train(model, loss, optimizer, data, label[:,0])
+            cost += train(model, loss, optimizer, data, label)
 
         #Prediction Mode
         model.eval()
