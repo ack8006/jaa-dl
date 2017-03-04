@@ -139,6 +139,13 @@ def main():
 
     best_validation_accuracy = -1.
 
+    print("-" * 50)
+    print("MODEL PARAMETERS")
+    print("epochs:", epochs)
+    print("batch size:", batch_size)
+    print("dropout:", args['dropout'])
+    print("-" * 50)
+
     for i in range(epochs):
         #Training Mode
         model.train()
@@ -158,13 +165,13 @@ def main():
             with open("best_cnn.model", "w") as file_pointer:
                 torch.save(model, file_pointer)
 
-        print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
+        print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%% best_acc = %.2f%%"
               % (i + 1, 
                 cost / (n_examples/batch_size), 
                 100. * np.mean(pred_train_y == train_label.numpy()),
-                validation_accuracy))
+                validation_accuracy, best_validation_accuracy))
 
-        with open("latest_cnn.model", "w") as file_pointer:
+        with open("latest_cnn_" + str(batch_size) + "_" + str(float(args['dropout'])) + ".model", "w") as file_pointer:
             torch.save(model, file_pointer)
 
 
