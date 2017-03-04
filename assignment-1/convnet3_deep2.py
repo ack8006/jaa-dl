@@ -209,6 +209,9 @@ def main():
     epochs = int(args['epochs'])
 
     print('Training Fun Time!!!')
+
+    best_validation_accuracy = -1.
+
     for i in range(epochs):
         #Training Mode
         model.train()
@@ -220,11 +223,22 @@ def main():
         model.eval()
         predY = predict(model, valid_data)
         pred_train_y = predict(model, train_data)
+
+        validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
+
+        if validation_accuracy > best_validation_accuracy:
+            best_validation_accuracy = validation_accuracy
+            with open("best_cnn.model", "w") as file_pointer:
+                torch.save(model, file_pointer)
+
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
               % (i + 1, 
                 cost / (n_examples/batch_size), 
                 100. * np.mean(pred_train_y == train_label.numpy()),
-                100. * np.mean(predY == valid_label.numpy())))
+                validation_accuracy))
+
+        with open("latest_cnn.model", "w") as file_pointer:
+            torch.save(model, file_pointer)
 
 
 if __name__ == "__main__":
