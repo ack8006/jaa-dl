@@ -19,107 +19,42 @@ import pickle
 DATASET_DIR = 'data/'
 
 
-def one_hot(x, n):
-    if type(x) == list:
-        x = np.array(x)
-    x = x.flatten()
-    o_h = np.zeros((len(x), n))
-    o_h[np.arange(len(x)), x] = 1
-    return o_h
-
-
-def download_file(url, local_path):
-    dir_path = path.dirname(local_path)
-    if not path.exists(dir_path):
-        print("Creating the directory '%s' ..." % dir_path)
-        os.makedirs(dir_path)
-
-    print("Downloading from '%s' ..." % url)
-    urllib.URLopener().retrieve(url, local_path)
-
-
-def download_mnist(local_path):
-    url_root = "http://yann.lecun.com/exdb/mnist/"
-    for f_name in ["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
-                   "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]:
-        f_path = os.path.join(local_path, f_name)
-        if not path.exists(f_path):
-            download_file(url_root + f_name, f_path)
-
-
-def load_mnist(ntrain=60000, ntest=10000, onehot=True):
-    data_dir = os.path.join(DATASET_DIR, 'mnist/')
-    if not path.exists(data_dir):
-        download_mnist(data_dir)
-
-    with gzip.open(os.path.join(data_dir, 'train-images-idx3-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        trX = loaded[16:].reshape((60000, 28 * 28)).astype(float)
-
-    with gzip.open(os.path.join(data_dir, 'train-labels-idx1-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        trY = loaded[8:].reshape((60000))
-
-    with gzip.open(os.path.join(data_dir, 't10k-images-idx3-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        teX = loaded[16:].reshape((10000, 28 * 28)).astype(float)
-
-    with gzip.open(os.path.join(data_dir, 't10k-labels-idx1-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        teY = loaded[8:].reshape((10000))
-
-    trX /= 255.
-    teX /= 255.
-
-    trX = trX[:ntrain]
-    trY = trY[:ntrain]
-
-    teX = teX[:ntest]
-    teY = teY[:ntest]
-
-    if onehot:
-        trY = one_hot(trY, 10)
-        teY = one_hot(teY, 10)
-    else:
-        trY = np.asarray(trY)
-        teY = np.asarray(teY)
-
-    return trX, teX, trY, teY
-
-
 # Separately create two sequential here since PyTorch doesn't have nn.View()
 class ConvNet(torch.nn.Module):
     def __init__(self, output_dim, dropout=0.5):
         super(ConvNet, self).__init__()
 
         self.conv = torch.nn.Sequential()
-        self.conv.add_module('batch_1', torch.nn.BatchNorm2d(1))
         self.conv.add_module('conv_1', torch.nn.Conv2d(1,8, kernel_size=3))
+        self.conv.add_module('batch_1', torch.nn.BatchNorm2d(8), affine=True)
         self.conv.add_module("relu_1", torch.nn.ReLU())
-        self.conv.add_module('batch_2', torch.nn.BatchNorm2d(8))
+
         self.conv.add_module('conv_2', torch.nn.Conv2d(8, 16, kernel_size=3))
+        self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16), affine=True)
         self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
         self.conv.add_module("relu_2", torch.nn.ReLU())
-        self.conv.add_module('batch_3', torch.nn.BatchNorm2d(16))
+
         self.conv.add_module('conv_3', torch.nn.Conv2d(16, 32, kernel_size=3))
+        self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32), affine=True)
         self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
         self.conv.add_module("relu_3", torch.nn.ReLU())
-        self.conv.add_module('batch_4', torch.nn.BatchNorm2d(32))
+
         self.conv.add_module('conv_4', torch.nn.Conv2d(32, 64, kernel_size=2))
+        self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64), affine=True)
         self.conv.add_module("relu_4", torch.nn.ReLU())
 
 
         self.fc = torch.nn.Sequential()
         self.fc.add_module("fc1", torch.nn.Linear(1024, 256))
+        self.conv.add_module('batch_5', torch.nn.BatchNorm1d(256), affine=True)
         self.fc.add_module("relu_5", torch.nn.ReLU())
         self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout))
+
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
+        self.conv.add_module('batch_6', torch.nn.BatchNorm1d(64), affine=True)
         self.fc.add_module("relu_6", torch.nn.ReLU())
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
+
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
         self.fc.add_module("relu_7", torch.nn.ReLU())
         self.fc.add_module("softmax", torch.nn.Softmax())
@@ -210,7 +145,7 @@ def main():
 
     print('Training Fun Time!!!')
 
-    best_validation_accuracy = -1.
+    best_validation_accuracy = 98.6
 
     for i in range(epochs):
         #Training Mode
@@ -226,9 +161,14 @@ def main():
 
         validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
 
+        model_infor = 'd{}b{}e{}acc{}'.format(str(args['dropout']).split('.')[1],
+                                              str(batch_size),
+                                              str(i),
+                                              str(validation_accuracy).replace('.',''))
+
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("best_cnn.model", "w") as file_pointer:
+            with open("best_cnn_{}.model".format(model_infor), "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
@@ -237,8 +177,8 @@ def main():
                 100. * np.mean(pred_train_y == train_label.numpy()),
                 validation_accuracy))
 
-        with open("latest_cnn.model", "w") as file_pointer:
-            torch.save(model, file_pointer)
+        #with open("latest_cnn_{}.model".format(model_infor), "w") as file_pointer:
+        #    torch.save(model, file_pointer)
 
 
 if __name__ == "__main__":
