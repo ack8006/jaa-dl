@@ -23,16 +23,16 @@ loader_kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 torch.manual_seed(42)
 
 print('Loading Training Data')
-train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
+train_data = pickle.load(open('data/translated_train.p', 'rb'))
 train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
+train_label = pickle.load(open('data/translated_train_labels.p', 'rb'))
 train_label = torch.from_numpy(train_label).long()
 
 print('Loading Validation Data')
-valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
+valid_data = pickle.load(open('data/valid_data.p', 'rb'))
 valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
 
-valid_label = pickle.load(open('data/generated_valid_labels.p', 'rb'))
+valid_label = pickle.load(open('data/valid_labels.p', 'rb'))
 valid_label = torch.from_numpy(valid_label).long()
 
 print('Creating Data Loaders')
