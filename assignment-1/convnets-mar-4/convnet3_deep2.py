@@ -16,80 +16,7 @@ from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
 import pickle
 
-DATASET_DIR = 'data/'
-
-
-def one_hot(x, n):
-    if type(x) == list:
-        x = np.array(x)
-    x = x.flatten()
-    o_h = np.zeros((len(x), n))
-    o_h[np.arange(len(x)), x] = 1
-    return o_h
-
-
-def download_file(url, local_path):
-    dir_path = path.dirname(local_path)
-    if not path.exists(dir_path):
-        print("Creating the directory '%s' ..." % dir_path)
-        os.makedirs(dir_path)
-
-    print("Downloading from '%s' ..." % url)
-    urllib.URLopener().retrieve(url, local_path)
-
-
-def download_mnist(local_path):
-    url_root = "http://yann.lecun.com/exdb/mnist/"
-    for f_name in ["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
-                   "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]:
-        f_path = os.path.join(local_path, f_name)
-        if not path.exists(f_path):
-            download_file(url_root + f_name, f_path)
-
-
-def load_mnist(ntrain=60000, ntest=10000, onehot=True):
-    data_dir = os.path.join(DATASET_DIR, 'mnist/')
-    if not path.exists(data_dir):
-        download_mnist(data_dir)
-
-    with gzip.open(os.path.join(data_dir, 'train-images-idx3-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        trX = loaded[16:].reshape((60000, 28 * 28)).astype(float)
-
-    with gzip.open(os.path.join(data_dir, 'train-labels-idx1-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        trY = loaded[8:].reshape((60000))
-
-    with gzip.open(os.path.join(data_dir, 't10k-images-idx3-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        teX = loaded[16:].reshape((10000, 28 * 28)).astype(float)
-
-    with gzip.open(os.path.join(data_dir, 't10k-labels-idx1-ubyte.gz')) as fd:
-        buf = fd.read()
-        loaded = np.frombuffer(buf, dtype=np.uint8)
-        teY = loaded[8:].reshape((10000))
-
-    trX /= 255.
-    teX /= 255.
-
-    trX = trX[:ntrain]
-    trY = trY[:ntrain]
-
-    teX = teX[:ntest]
-    teY = teY[:ntest]
-
-    if onehot:
-        trY = one_hot(trY, 10)
-        teY = one_hot(teY, 10)
-    else:
-        trY = np.asarray(trY)
-        teY = np.asarray(teY)
-
-    return trX, teX, trY, teY
-
+DATASET_DIR = '../data/'
 
 # Separately create two sequential here since PyTorch doesn't have nn.View()
 class ConvNet(torch.nn.Module):
@@ -177,16 +104,16 @@ def main():
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
     print('Loading Training Data')
-    train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
+    train_data = pickle.load(open(DATASET_DIR + 'generated_train_data_norm.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-    train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
+    train_label = pickle.load(open(DATASET_DIR + 'generated_train_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
     
     print('Loading Validation Data')
-    valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
+    valid_data = pickle.load(open(DATASET_DIR + 'generated_valid_data_norm.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
 
-    valid_label = pickle.load(open('data/generated_valid_labels.p', 'rb'))
+    valid_label = pickle.load(open(DATASET_DIR + 'generated_valid_labels.p', 'rb'))
     valid_label = torch.from_numpy(valid_label).long()
 
     n_examples = len(train_data)
