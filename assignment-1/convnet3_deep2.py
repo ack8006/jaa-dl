@@ -26,32 +26,32 @@ class ConvNet(torch.nn.Module):
 
         self.conv = torch.nn.Sequential()
         self.conv.add_module('conv_1', torch.nn.Conv2d(1,8, kernel_size=3))
-        self.conv.add_module('batch_1', torch.nn.BatchNorm2d(8), affine=True)
+        self.conv.add_module('batch_1', torch.nn.BatchNorm2d(8, affine=True))
         self.conv.add_module("relu_1", torch.nn.ReLU())
 
         self.conv.add_module('conv_2', torch.nn.Conv2d(8, 16, kernel_size=3))
-        self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16), affine=True)
-        self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
+        self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16, affine=True))
         self.conv.add_module("relu_2", torch.nn.ReLU())
+        self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
 
         self.conv.add_module('conv_3', torch.nn.Conv2d(16, 32, kernel_size=3))
-        self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32), affine=True)
-        self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
+        self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32, affine=True))
         self.conv.add_module("relu_3", torch.nn.ReLU())
+        self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
 
         self.conv.add_module('conv_4', torch.nn.Conv2d(32, 64, kernel_size=2))
-        self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64), affine=True)
+        self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64, affine=True))
         self.conv.add_module("relu_4", torch.nn.ReLU())
 
 
         self.fc = torch.nn.Sequential()
         self.fc.add_module("fc1", torch.nn.Linear(1024, 256))
-        self.conv.add_module('batch_5', torch.nn.BatchNorm1d(256), affine=True)
+        self.fc.add_module('batch_5', torch.nn.BatchNorm1d(256, affine=True))
         self.fc.add_module("relu_5", torch.nn.ReLU())
         self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout))
 
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
-        self.conv.add_module('batch_6', torch.nn.BatchNorm1d(64), affine=True)
+        self.fc.add_module('batch_6', torch.nn.BatchNorm1d(64, affine=True))
         self.fc.add_module("relu_6", torch.nn.ReLU())
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
 
@@ -145,7 +145,7 @@ def main():
 
     print('Training Fun Time!!!')
 
-    best_validation_accuracy = 98.6
+    best_validation_accuracy = -1.0
 
     for i in range(epochs):
         #Training Mode
@@ -168,7 +168,7 @@ def main():
 
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("best_cnn_{}.model".format(model_infor), "w") as file_pointer:
+            with open("saved_models/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
