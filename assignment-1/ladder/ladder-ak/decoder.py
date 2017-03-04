@@ -156,14 +156,10 @@ class StackedDecoders(torch.nn.Module):
         assert len(hat_z_layers) == len(z_pre_layers)
         hat_z_layers_normalized = []
         for i, (hat_z, z_pre) in enumerate(zip(hat_z_layers, z_pre_layers)):
-            if i == len(hat_z_layers) - 1:
-                # don't batch normalize for the last layer
-                hat_z_layers_normalized.append(hat_z)
-            else:
-                ones = Variable(torch.ones(z_pre.size()[0], 1))
-                mean = torch.mean(z_pre, 0)
-                var = np.var(z_pre.data.numpy(), axis=0).reshape(1, z_pre.size()[1])
-                var = Variable(torch.FloatTensor(var))
-                hat_z_normalized = torch.div(hat_z - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
-                hat_z_layers_normalized.append(hat_z_normalized)
+            ones = Variable(torch.ones(z_pre.size()[0], 1))
+            mean = torch.mean(z_pre, 0)
+            var = np.var(z_pre.data.numpy(), axis=0).reshape(1, z_pre.size()[1])
+            var = Variable(torch.FloatTensor(var))
+            hat_z_normalized = torch.div(hat_z - ones.mm(mean), ones.mm(torch.sqrt(var + 1e-5)))
+            hat_z_layers_normalized.append(hat_z_normalized)
         return hat_z_layers_normalized
