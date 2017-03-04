@@ -104,16 +104,16 @@ def main():
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
     print('Loading Training Data')
-    train_data = pickle.load(open(DATASET_DIR + 'generated_train_data_norm.p', 'rb'))
+    train_data = pickle.load(open(DATASET_DIR + 'aug_data_sample50k.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-    train_label = pickle.load(open(DATASET_DIR + 'generated_train_labels.p', 'rb'))
+    train_label = pickle.load(open(DATASET_DIR + 'aug_labels_sample50k.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
     
     print('Loading Validation Data')
-    valid_data = pickle.load(open(DATASET_DIR + 'generated_valid_data_norm.p', 'rb'))
+    valid_data = pickle.load(open(DATASET_DIR + 'valid_data.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
 
-    valid_label = pickle.load(open(DATASET_DIR + 'generated_valid_labels.p', 'rb'))
+    valid_label = pickle.load(open(DATASET_DIR + 'valid_labels.p', 'rb'))
     valid_label = torch.from_numpy(valid_label).long()
 
     n_examples = len(train_data)
@@ -162,7 +162,7 @@ def main():
 
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("best_cnn.model", "w") as file_pointer:
+            with open("best_cnn" + str(batch_size) + "_" + str(float(args['dropout']))  + ".model", "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%% best_acc = %.2f%%"
