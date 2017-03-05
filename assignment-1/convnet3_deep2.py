@@ -56,12 +56,14 @@ class ConvNet(torch.nn.Module):
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
 
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
-        self.fc.add_module("relu_7", torch.nn.ReLU())
+        # self.fc.add_module("relu_7", torch.nn.ReLU())
         self.fc.add_module("softmax", torch.nn.Softmax())
 
 
     def forward(self, x):
         x = self.conv.forward(x)
+        print("Test:", x.size())
+        _ = raw_input("Enter")
         x = x.view(-1, 1024)
         return self.fc.forward(x)
 
@@ -130,7 +132,7 @@ def main():
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     #optimizer = optim.SGD(model.parameters(), lr=0.01)
     #optimizer = optim.Adam(model.parameters())
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     #optimizer = optim.Adagrad(model.parameters())
     #optimizer = optim.Adamax(model.parameters())
     batch_size = int(args['minibatch'])
