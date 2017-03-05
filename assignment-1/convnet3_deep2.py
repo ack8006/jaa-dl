@@ -145,7 +145,7 @@ def main():
 
     print('Training Fun Time!!!')
 
-    best_validation_accuracy = 98.6
+    best_validation_accuracy = 98.8
 
     for i in range(epochs):
         #Training Mode
@@ -168,7 +168,7 @@ def main():
 
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("saved_models/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
+            with open("saved_models2/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
