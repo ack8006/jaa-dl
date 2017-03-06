@@ -21,42 +21,41 @@ DATASET_DIR = 'data/'
 
 # Separately create two sequential here since PyTorch doesn't have nn.View()
 class ConvNet(torch.nn.Module):
-    def __init__(self, output_dim, dropout=0.5):
+    def __init__(self, output_dim, dropout_1=0.4, dropout_2=0.5):
         super(ConvNet, self).__init__()
 
         self.conv = torch.nn.Sequential()
         self.conv.add_module('conv_1', torch.nn.Conv2d(1,8, kernel_size=3))
         self.conv.add_module('batch_1', torch.nn.BatchNorm2d(8, affine=True))
-        self.conv.add_module("relu_1", torch.nn.ReLU())
+        self.conv.add_module("relu_1", torch.nn.LeakyReLU(negative_slope=1/5.5))
 
         self.conv.add_module('conv_2', torch.nn.Conv2d(8, 16, kernel_size=3))
         self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16, affine=True))
-        self.conv.add_module("relu_2", torch.nn.ReLU())
+        self.conv.add_module("relu_2", torch.nn.LeakyReLU(negative_slope=1/5.5))
         self.conv.add_module("maxpool_1", torch.nn.FractionalMaxPool2d(kernel_size=2))
 
         self.conv.add_module('conv_3', torch.nn.Conv2d(16, 32, kernel_size=3))
         self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32, affine=True))
-        self.conv.add_module("relu_3", torch.nn.ReLU())
+        self.conv.add_module("relu_3", torch.nn.LeakyReLU(negative_slope=1/5.5))
         self.conv.add_module("maxpool_2", torch.nn.FractionalMaxPool2d(kernel_size=2))
 
         self.conv.add_module('conv_4', torch.nn.Conv2d(32, 64, kernel_size=2))
         self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64, affine=True))
-        self.conv.add_module("relu_4", torch.nn.ReLU())
+        self.conv.add_module("relu_4", torch.nn.LeakyReLU(negative_slope=1/5.5))
 
 
         self.fc = torch.nn.Sequential()
         self.fc.add_module("fc1", torch.nn.Linear(1024, 256))
         self.fc.add_module('batch_5', torch.nn.BatchNorm1d(256, affine=True))
-        self.fc.add_module("relu_5", torch.nn.ReLU())
-        self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout))
+        self.fc.add_module("relu_5", torch.nn.LeakyReLU(negative_slope=1/5.5))
+        self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout_1))
 
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
         self.fc.add_module('batch_6', torch.nn.BatchNorm1d(64, affine=True))
-        self.fc.add_module("relu_6", torch.nn.ReLU())
-        self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout))
+        self.fc.add_module("relu_6", torch.nn.LeakyReLU(negative_slope=1/5.5))
+        self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout_2))
 
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
-        #self.fc.add_module("relu_7", torch.nn.ReLU())
         self.fc.add_module("softmax", torch.nn.Softmax())
 
 
@@ -97,7 +96,8 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
-    parser.add_argument('-d', '--dropout', default=0.5)
+    parser.add_argument('-d', '--dropout_1', default=0.4)
+    parser.add_argument('-r', '--dropout_2', default=0.5)
     parser.add_argument('-b', '--minibatch', default=16)
     # parser.add_argument()
     args = vars(parser.parse_args())
@@ -128,7 +128,7 @@ def main():
 
     n_examples = len(train_data)
     n_classes = 10
-    model = ConvNet(output_dim=n_classes, dropout=float(args['dropout']))
+    model = ConvNet(output_dim=n_classes, dropout_1=float(args['dropout_1']), dropout_2=float(args['dropout_2']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     #optimizer = optim.SGD(model.parameters(), lr=0.01)
     #optimizer = optim.Adam(model.parameters())
@@ -147,7 +147,7 @@ def main():
 
     print('Training Fun Time!!!')
 
-    best_validation_accuracy = 98.9
+    best_validation_accuracy = 99.1
 
     for i in range(epochs):
         #Training Mode
@@ -163,14 +163,15 @@ def main():
 
         validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
 
-        model_infor = 'd{}b{}e{}acc{}'.format(str(args['dropout']).split('.')[1],
-                                              str(batch_size),
-                                              str(i),
-                                              str(validation_accuracy).replace('.',''))
+        model_infor = 'd1{}d2{}b{}e{}acc{}'.format(str(args['dropout_1']).split('.')[1],
+                                                   str(args['dropout_2']).split('.')[1],
+                                                   str(batch_size),
+                                                   str(i),
+                                                   str(validation_accuracy).replace('.',''))
 
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("saved_models2/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
+            with open("saved_models3/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
