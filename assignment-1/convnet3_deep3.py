@@ -32,12 +32,12 @@ class ConvNet(torch.nn.Module):
         self.conv.add_module('conv_2', torch.nn.Conv2d(8, 16, kernel_size=3))
         self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16, affine=True))
         self.conv.add_module("relu_2", torch.nn.LeakyReLU(negative_slope=1/5.5))
-        self.conv.add_module("maxpool_1", torch.nn.FractionalMaxPool2d(kernel_size=2))
+        self.conv.add_module("maxpool_1", torch.nn.FractionalMaxPool2d(kernel_size=2, output_ratio=(0.5, 0.5)))
 
         self.conv.add_module('conv_3', torch.nn.Conv2d(16, 32, kernel_size=3))
         self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32, affine=True))
         self.conv.add_module("relu_3", torch.nn.LeakyReLU(negative_slope=1/5.5))
-        self.conv.add_module("maxpool_2", torch.nn.FractionalMaxPool2d(kernel_size=2))
+        self.conv.add_module("maxpool_2", torch.nn.FractionalMaxPool2d(kernel_size=2, output_ratio=(0.5, 0.5)))
 
         self.conv.add_module('conv_4', torch.nn.Conv2d(32, 64, kernel_size=2))
         self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64, affine=True))
