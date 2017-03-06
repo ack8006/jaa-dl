@@ -21,7 +21,7 @@ DATASET_DIR = 'data/'
 
 # Separately create two sequential here since PyTorch doesn't have nn.View()
 class ConvNet(torch.nn.Module):
-    def __init__(self, output_dim, dropout1=0.4, dropout2=0.5):
+    def __init__(self, output_dim, dropout_1=0.4, dropout_2=0.5):
         super(ConvNet, self).__init__()
 
         self.conv = torch.nn.Sequential()
@@ -48,12 +48,12 @@ class ConvNet(torch.nn.Module):
         self.fc.add_module("fc1", torch.nn.Linear(1024, 256))
         self.fc.add_module('batch_5', torch.nn.BatchNorm1d(256, affine=True))
         self.fc.add_module("leakyrelu_5", torch.nn.LeakyReLU())
-        self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout1))
+        self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout_1))
 
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
         self.fc.add_module('batch_6', torch.nn.BatchNorm1d(64, affine=True))
         self.fc.add_module("leakyrelu_6", torch.nn.LeakyReLU())
-        self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout2))
+        self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout_2))
 
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
         self.fc.add_module("softmax", torch.nn.Softmax())
@@ -96,8 +96,8 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
-    parser.add_argument('-d', '--dropout_1', default=0.4)
-    parser.add_argument('-d', '--dropout_2', default=0.5)
+    parser.add_argument('-d1', '--dropout_1', default=0.4)
+    parser.add_argument('-d2', '--dropout_2', default=0.5)
     parser.add_argument('-b', '--minibatch', default=16)
     # parser.add_argument()
     args = vars(parser.parse_args())
@@ -112,11 +112,11 @@ def main():
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
     print('Loading Training Data')
-    train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
+    train_data = pickle.load(open('data/train_gold_data.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-    train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
+    train_label = pickle.load(open('data/train_gold_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
-    
+
     print('Loading Validation Data')
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
@@ -126,7 +126,7 @@ def main():
 
     n_examples = len(train_data)
     n_classes = 10
-    model = ConvNet(output_dim=n_classes, dropout1=float(args['dropout1']), dropout2=float(args['dropout2']))
+    model = ConvNet(output_dim=n_classes, dropout_1=float(args['dropout_1']), dropout_2=float(args['dropout_2']))
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     #optimizer = optim.SGD(model.parameters(), lr=0.01)
     #optimizer = optim.Adam(model.parameters())
@@ -161,8 +161,8 @@ def main():
 
         validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
 
-        model_infor = 'd1{}d2{}b{}e{}acc{}'.format(str(args['dropout1']).split('.')[1],
-                                                   str(args['dropout2']).split('.')[1],
+        model_infor = 'd1{}d2{}b{}e{}acc{}'.format(str(args['dropout_1']).split('.')[1],
+                                                   str(args['dropout_2']).split('.')[1],
                                                    str(batch_size),
                                                    str(i),
                                                    str(validation_accuracy).replace('.',''))
@@ -173,8 +173,8 @@ def main():
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
-              % (i + 1, 
-                cost / (n_examples/batch_size), 
+              % (i + 1,
+                cost / (n_examples/batch_size),
                 100. * np.mean(pred_train_y == train_label.numpy()),
                 validation_accuracy))
 
@@ -184,5 +184,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
