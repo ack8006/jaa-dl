@@ -27,32 +27,32 @@ class ConvNet(torch.nn.Module):
         self.conv = torch.nn.Sequential()
         self.conv.add_module('conv_1', torch.nn.Conv2d(1,8, kernel_size=3))
         self.conv.add_module('batch_1', torch.nn.BatchNorm2d(8, affine=True))
-        self.conv.add_module("leakyrelu_1", torch.nn.LeakyReLU())
+        self.conv.add_module("relu_1", torch.nn.LeakyReLU(negative_slope=1/5.5))
 
         self.conv.add_module('conv_2', torch.nn.Conv2d(8, 16, kernel_size=3))
         self.conv.add_module('batch_2', torch.nn.BatchNorm2d(16, affine=True))
-        self.conv.add_module("leakyrelu_2", torch.nn.LeakyReLU())
-        self.conv.add_module("maxpool_1", torch.nn.MaxPool2d(kernel_size=2))
+        self.conv.add_module("relu_2", torch.nn.LeakyReLU(negative_slope=1/5.5))
+        self.conv.add_module("maxpool_1", torch.nn.FractionalMaxPool2d(kernel_size=2, output_ratio=(0.5, 0.5)))
 
         self.conv.add_module('conv_3', torch.nn.Conv2d(16, 32, kernel_size=3))
         self.conv.add_module('batch_3', torch.nn.BatchNorm2d(32, affine=True))
-        self.conv.add_module("leakyrelu_3", torch.nn.LeakyReLU())
-        self.conv.add_module("maxpool_2", torch.nn.MaxPool2d(kernel_size=2))
+        self.conv.add_module("relu_3", torch.nn.LeakyReLU(negative_slope=1/5.5))
+        self.conv.add_module("maxpool_2", torch.nn.FractionalMaxPool2d(kernel_size=2, output_ratio=(0.5, 0.5)))
 
         self.conv.add_module('conv_4', torch.nn.Conv2d(32, 64, kernel_size=2))
         self.conv.add_module('batch_4', torch.nn.BatchNorm2d(64, affine=True))
-        self.conv.add_module("leakyrelu_4", torch.nn.LeakyReLU())
+        self.conv.add_module("relu_4", torch.nn.LeakyReLU(negative_slope=1/5.5))
 
 
         self.fc = torch.nn.Sequential()
         self.fc.add_module("fc1", torch.nn.Linear(1024, 256))
         self.fc.add_module('batch_5', torch.nn.BatchNorm1d(256, affine=True))
-        self.fc.add_module("leakyrelu_5", torch.nn.LeakyReLU())
+        self.fc.add_module("relu_5", torch.nn.LeakyReLU(negative_slope=1/5.5))
         self.fc.add_module("dropout_1", torch.nn.Dropout(p=dropout_1))
 
         self.fc.add_module("fc2", torch.nn.Linear(256, 64))
         self.fc.add_module('batch_6', torch.nn.BatchNorm1d(64, affine=True))
-        self.fc.add_module("leakyrelu_6", torch.nn.LeakyReLU())
+        self.fc.add_module("relu_6", torch.nn.LeakyReLU(negative_slope=1/5.5))
         self.fc.add_module("dropout_2", torch.nn.Dropout(p=dropout_2))
 
         self.fc.add_module("fc3", torch.nn.Linear(64, output_dim))
@@ -96,8 +96,8 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument('-e', '--epochs', default=1000, help='Number of Epochs To Run')
-    parser.add_argument('-d1', '--dropout_1', default=0.4)
-    parser.add_argument('-d2', '--dropout_2', default=0.5)
+    parser.add_argument('-d', '--dropout_1', default=0.4)
+    parser.add_argument('-r', '--dropout_2', default=0.5)
     parser.add_argument('-b', '--minibatch', default=16)
     # parser.add_argument()
     args = vars(parser.parse_args())
@@ -112,11 +112,13 @@ def main():
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
     print('Loading Training Data')
-    train_data = pickle.load(open('data/train_gold_data.p', 'rb'))
+    train_data = pickle.load(open('data/super_train_74_data.p', 'rb'))
+    #train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-    train_label = pickle.load(open('data/train_gold_labels.p', 'rb'))
+    train_label = pickle.load(open('data/super_train_74_labels.p', 'rb'))
+    #train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
-
+    
     print('Loading Validation Data')
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
     valid_data = torch.from_numpy(valid_data).float().resize_(len(valid_data),1,28,28)
@@ -145,7 +147,7 @@ def main():
 
     print('Training Fun Time!!!')
 
-    best_validation_accuracy = 98.8
+    best_validation_accuracy = 99.1
 
     for i in range(epochs):
         #Training Mode
@@ -169,12 +171,12 @@ def main():
 
         if validation_accuracy > best_validation_accuracy:
             best_validation_accuracy = validation_accuracy
-            with open("saved_models_leaky_relu/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
+            with open("saved_models3/best_cnn_{}.model".format(model_infor), "w") as file_pointer:
                 torch.save(model, file_pointer)
 
         print("Epoch %d, cost = %f, train_acc = %.2f%% val_acc = %.2f%%"
-              % (i + 1,
-                cost / (n_examples/batch_size),
+              % (i + 1, 
+                cost / (n_examples/batch_size), 
                 100. * np.mean(pred_train_y == train_label.numpy()),
                 validation_accuracy))
 
@@ -184,3 +186,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
