@@ -242,8 +242,7 @@ def main():
 
         validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
 
-        model_infor = 'd{}b{}e{}acc{}'.format(str(args['dropout_1']).split('.')[1],
-                                                   str(args['dropout_2']).split('.')[1],
+        model_infor = 'd{}b{}e{}acc{}'.format(str(args['dropout']).split('.')[1],
                                                    str(batch_size),
                                                    str(i),
                                                    str(validation_accuracy).replace('.',''))
