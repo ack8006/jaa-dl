@@ -6,9 +6,9 @@ import torch
 import numpy as np
 import pandas as pd
 
-from convnet3_deep3 import ConvNet_c3d3
-from convnet_leaky_relu import ConvNet_leaky
-from convnet_heavy_dropout import ConvNet_heavy
+from convnet3_deep3 import ConvNet as ConvNet_c3d3
+from convnet_leaky_relu import ConvNet as ConvNet_leaky
+from convnet_heavy_dropout import ConvNet as ConvNet_heavy
 
 
 #MODEL_PATH = 'final_model_save/'
