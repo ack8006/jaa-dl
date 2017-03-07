@@ -228,16 +228,19 @@ def main():
               batch_size=BATCH_SIZE)
 
     # sda.pretrain(trX, pt_epochs = PRETRAIN_EPOCHS)
-    # sda.pretrain(train_loader, pt_epochs = PRETRAIN_EPOCHS)
+    sda.pretrain(train_loader, pt_epochs = PRETRAIN_EPOCHS)
 
     # with open('sda_pretrained.model', 'w') as f:
     #     torch.save(sda, f)
-    sda = torch.load('sda_pretrained.model')
-    print('Model Loaded')
+    # sda = torch.load('sda_pretrained.model')
+    # print('Model Loaded')
 
     # sda.finetune(trX, trY, teX_padded, teY_padded,
     #              valid_actual_size=actual_size, ft_epochs = FINETUNE_EPOCHS)
     sda.finetune(train_loader, valid_loader, ft_epochs = FINETUNE_EPOCHS)
+
+    with open('sda_trained_model.model', 'w') as f:
+        torch.save(sda, f)
 
 
 
