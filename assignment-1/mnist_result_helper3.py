@@ -11,7 +11,7 @@ def predict(m, x_val):
     output = m.forward(x)
     return output.data.numpy()
 
-def helper_2(test_data, model_path, file_1, weight_1, file_2, weight_2):
+def helper_3(test_data, model_path, file_1, weight_1, file_2, weight_2):
     model = torch.load(model_path+file_1)
     predictions = predict(model, test_data) * weight_1
 
