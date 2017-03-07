@@ -6,9 +6,13 @@ import torch
 import numpy as np
 import pandas as pd
 
-from convnet3_deep3 import ConvNet as ConvNet_c3d3
-from convnet_leaky_relu import ConvNet as ConvNet_leaky
-from convnet_heavy_dropout import ConvNet as ConvNet_heavy
+# from convnet3_deep3 import ConvNet as ConvNet_c3d3
+# from convnet_leaky_relu import ConvNet as ConvNet_leaky
+# from convnet_heavy_dropout import ConvNet as ConvNet_heavy
+from mnist_result_helper1 import helper_1
+from mnist_result_helper2 import helper_2
+from mnist_result_helper3 import helper_3
+
 
 
 #MODEL_PATH = 'final_model_save/'
@@ -17,14 +21,14 @@ MODEL_PATH = 'final_model_save/pre-gen-models/'
 FINAL_WEIGHTS = [0.15789473684210525, 0.2368421052631579, 0.15789473684210525,
                  0.15789473684210525, 0.2105263157894737, 0.07894736842105263]
 
-def helper(ConvNet, test_data, model_path, file_1, weight_1, file_2, weight_2):
-    model = torch.load(model_path+file_1)
-    predictions = predict(model, test_data) * weight_1
+# def helper(ConvNet, test_data, model_path, file_1, weight_1, file_2, weight_2):
+#     model = torch.load(model_path+file_1)
+#     predictions = predict(model, test_data) * weight_1
 
-    model = torch.load(MODEL_PATH+model_2)
-    predictions += predict(model, test_data) * model_2
+#     model = torch.load(MODEL_PATH+model_2)
+#     predictions += predict(model, test_data) * model_2
 
-    return predictions
+#     return predictions
 
 def load_valid_data():
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
@@ -50,17 +54,18 @@ def predict(m, x_val):
 def main():
     test_data , valid_label = load_valid_data()
 
-    predictions = helper(ConvNet_c3d3, test_data, MODEL_PATH,
+    predictions = helper_1(test_data, MODEL_PATH,
                         'conv3deep3_mdl1.model', FINAL_WEIGHTS[0],
                         'conv3deep3_mdl2.model', FINAL_WEIGHTS[1])
 
-    predictions += helper(ConvNet_leaky, test_data, MODEL_PATH,
+    predictions += helper_2(test_data, MODEL_PATH,
                         'convleaky_mdl2.model', FINAL_WEIGHTS[2],
                         'convleaky_mdl1.model', FINAL_WEIGHTS[3])
 
-    predictions += helper(ConvNet_heavy, test_data, MODEL_PATH,
+    predictions += helper_3(test_data, MODEL_PATH,
                         'convheavy_mdl1.model', FINAL_WEIGHTS[4],
                         'convheavy_mdl2.model', FINAL_WEIGHTS[5])
+    
     #test_data = load_test_data()
 
     # from convnet3_deep3 import ConvNet
