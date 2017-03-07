@@ -192,9 +192,11 @@ def main():
     #trainset_labeled = pickle.load(open("data/train_labeled.p", "rb"))
 
     print('Loading Training Data')
-    train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
+    train_data = pickle.load(open('data/super_train_74_data.p', 'rb'))
+    #train_data = pickle.load(open('data/generated_train_data_norm.p', 'rb'))
     train_data = torch.from_numpy(train_data).float()#.resize_(27000,1,28,28)
-    train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
+    train_label = pickle.load(open('data/super_train_74_labels.p', 'rb'))
+    #train_label = pickle.load(open('data/generated_train_labels.p', 'rb'))
     train_label = torch.from_numpy(train_label).long()
     
     print('Loading Validation Data')
@@ -210,7 +212,7 @@ def main():
     loss = torch.nn.CrossEntropyLoss(size_average=True)
     #optimizer = optim.SGD(model.parameters(), lr=0.01)
     #optimizer = optim.Adam(model.parameters())
-    #optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     #optimizer = optim.Adagrad(model.parameters())
     #optimizer = optim.Adamax(model.parameters())
     batch_size = int(args['minibatch'])
@@ -231,7 +233,7 @@ def main():
         model.train()
         cost = 0.
         for ind, (data, label) in enumerate(train_loader):
-            cost += train(model, loss, optimizer, data, label[:,0])
+            cost += train(model, loss, optimizer, data, label)
 
         #Evaluation Mode
         model.eval()
