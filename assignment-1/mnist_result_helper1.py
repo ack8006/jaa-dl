@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 
+import pickle
 import torch 
 from torch.autograd import Variable
 
@@ -37,7 +38,10 @@ def helper_1(test_data, model_path, file_1, weight_1, file_2, weight_2):
     return predictions
 
 if __name__ == '__main__':
-	test_data, _ = load_valid_data()
-	helper_1(test_data, 'final_model_save/pre-gen-models/',
-                        'conv3deep3_mdl1.model', 0.5,
-                        'conv3deep3_mdl2.model', 0.5)
+    test_data, _ = load_valid_data()
+    pred = helper_1(test_data, 'final_model_save/pre-gen-models/',
+                        'conv3deep3_mdl1.model', 0.15789473684210525,
+                        'conv3deep3_mdl2.model', 0.2368421052631579)
+    pickle.dump(pred, open('helper_1_dump.p', 'w'))
+    
+	
