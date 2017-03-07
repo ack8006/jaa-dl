@@ -6,12 +6,25 @@ import torch
 import numpy as np
 import pandas as pd
 
+from convnet3_deep3 import ConvNet_c3d3
+from convnet_leaky_relu import ConvNet_leaky
+from convnet_heavy_dropout import ConvNet_heavy
+
 
 #MODEL_PATH = 'final_model_save/'
 MODEL_PATH = 'final_model_save/pre-gen-models/'
 
 FINAL_WEIGHTS = [0.15789473684210525, 0.2368421052631579, 0.15789473684210525,
                  0.15789473684210525, 0.2105263157894737, 0.07894736842105263]
+
+def helper(ConvNet, test_data, model_path, file_1, weight_1, file_2, weight_2):
+    model = torch.load(model_path+file_1)
+    predictions = predict(model, test_data) * weight_1
+
+    model = torch.load(MODEL_PATH+model_2)
+    predictions += predict(model, test_data) * model_2
+
+    return predictions
 
 def load_valid_data():
     valid_data = pickle.load(open('data/generated_valid_data_norm.p', 'rb'))
@@ -36,35 +49,40 @@ def predict(m, x_val):
 
 def main():
     test_data , valid_label = load_valid_data()
+
+    predictions = helper(ConvNet_c3d3, test_data, MODEL_PATH,
+                        'conv3deep3_mdl1.model', FINAL_WEIGHTS[0],
+                        'conv3deep3_mdl2.model', FINAL_WEIGHTS[1])
+
+    predictions += helper(ConvNet_leaky, test_data, MODEL_PATH,
+                        'convleaky_mdl2.model', FINAL_WEIGHTS[2],
+                        'convleaky_mdl1.model', FINAL_WEIGHTS[3])
+
+    predictions += helper(ConvNet_heavy, test_data, MODEL_PATH,
+                        'convheavy_mdl1.model', FINAL_WEIGHTS[4],
+                        'convheavy_mdl2.model', FINAL_WEIGHTS[5])
     #test_data = load_test_data()
 
+    # from convnet3_deep3 import ConvNet
+    # model = torch.load(MODEL_PATH+'conv3deep3_mdl1.model')
+    # predictions = predict(model, test_data) * FINAL_WEIGHTS[0]
 
-    print(1)
-    from convnet3_deep3 import ConvNet
-    model = torch.load(MODEL_PATH+'conv3deep3_mdl1.model')
-    predictions = predict(model, test_data) * FINAL_WEIGHTS[0]
+    # model = torch.load(MODEL_PATH+'conv3deep3_mdl2.model')
+    # predictions += predict(model, test_data) * FINAL_WEIGHTS[1]
 
-    print(2)
-    model = torch.load(MODEL_PATH+'conv3deep3_mdl2.model')
-    predictions += predict(model, test_data) * FINAL_WEIGHTS[1]
+    # from convnet_leaky_relu import ConvNet
+    # model = torch.load(MODEL_PATH+'convleaky_mdl2.model')
+    # predictions = predict(model, test_data) * FINAL_WEIGHTS[2]
 
-    print(3)
-    from convnet_leaky_relu import ConvNet
-    model = torch.load(MODEL_PATH+'convleaky_mdl2.model')
-    predictions = predict(model, test_data) * FINAL_WEIGHTS[2]
+    # model = torch.load(MODEL_PATH+'convleaky_mdl1.model')
+    # predictions += predict(model, test_data) * FINAL_WEIGHTS[3]
 
-    print(4)
-    model = torch.load(MODEL_PATH+'convleaky_mdl1.model')
-    predictions += predict(model, test_data) * FINAL_WEIGHTS[3]
+    # from convnet_heavy_dropout import ConvNet
+    # model = torch.load(MODEL_PATH+'convheavy_mdl1.model')
+    # predictions = predict(model, test_data) * FINAL_WEIGHTS[4]
 
-    print(5)
-    from convnet_heavy_dropout import ConvNet
-    model = torch.load(MODEL_PATH+'convheavy_mdl1.model')
-    predictions = predict(model, test_data) * FINAL_WEIGHTS[4]
-
-    print(6)
-    model = torch.load(MODEL_PATH+'convleaky_mdl1.model')
-    predictions += predict(model, test_data) * FINAL_WEIGHTS[5]
+    # model = torch.load(MODEL_PATH+'convheavy_mdl2.model')
+    # predictions += predict(model, test_data) * FINAL_WEIGHTS[5]
 
     predictions = predictions.argmax(axis=1)
     print(100. * np.mean(predictions == valid_label.numpy()))
