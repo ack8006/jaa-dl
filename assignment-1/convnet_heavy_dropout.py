@@ -93,6 +93,39 @@ def predict(model, x_val):
     output = model.forward(x)
     return output.data.numpy().argmax(axis=1)
 
+def run(train_loader, valid_data, valid_label, n_examples, epochs, d1, d2, d3, d4, d5, d6, minibatch, save_label):
+    torch.manual_seed(42)
+
+    n_classes = 10
+    model = model = ConvNet(output_dim=n_classes,
+                            dropout_1=d1,
+                            dropout_2=d2,
+                            dropout_3=d3,
+                            dropout_4=d4,
+                            dropout_5=d5,
+                            dropout_6=d6)
+    loss = torch.nn.CrossEntropyLoss(size_average=True)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    batch_size = minibatch
+    for i in range(epochs):
+        model.train()
+        cost = 0.
+        for ind, (data, label) in enumerate(train_loader):
+            cost += train(model, loss, optimizer, data, label)
+
+        model.eval()
+        predY = predict(model, valid_data)
+
+        validation_accuracy = 100. * np.mean(predY == valid_label.numpy())
+        print("Epoch %d, cost = %f, val_acc = %.2f%%"
+              % (i + 1, 
+                cost / (n_examples/batch_size),
+                validation_accuracy))
+
+    with open("final_model_save/convheavy_{}.model".format(save_label), "w") as f:
+        torch.save(model, f)
+
+
 
 def main():
     torch.manual_seed(42)
