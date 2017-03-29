@@ -5,6 +5,7 @@ import os
 import urllib
 
 import numpy
+from collections import Counter
 
 SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
 
@@ -164,6 +165,13 @@ class SemiDataSet(object):
             i_labeled += list(i)
         l_images = images[i_labeled]
         l_labels = labels[i_labeled]
+        print("#" * 50)
+        c = Counter()
+        print(l_labels.shape)
+        for x in l_labels:
+            c[numpy.argmax(x)] += 1
+        print(c)
+        print("#" * 50)
         self.labeled_ds = DataSet(l_images, l_labels)
 
     def shuffle_data(self):
