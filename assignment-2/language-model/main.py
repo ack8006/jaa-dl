@@ -20,7 +20,7 @@ parser.add_argument('--nhid', type=int, default=50,
                     help='humber of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=0.01,
+parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.5,
                     help='gradient clipping')
@@ -33,6 +33,8 @@ parser.add_argument('--weightinit', type=str, default='orthogonal',
 parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
 parser.add_argument('--tied', action='store_true',
+                    help='tie the word embedding and softmax weights')
+parser.add_argument('--shuffle', action='store_false',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--epochs', type=int, default=6,
                     help='upper epoch limit')
@@ -133,14 +135,16 @@ def train(optimizer):
         loss.backward()
 
         clip_grad_norm(model.parameters(), args.clip)
-        optimizer.step()
+        for p in model.parameters():
+            p.data.add_(-lr, p.grad.data)
+        # optimizer.step()
 
         total_loss += loss.data
 
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.4f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
                 epoch, batch, len(train_data) // args.bptt, lr,
                 elapsed * 1000.0 / args.log_interval, cur_loss, math.exp(cur_loss)))
@@ -150,13 +154,13 @@ def train(optimizer):
 
 print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle')
 print('\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
-                                    args.decinit, args.weightinit, args.dropout, args.tied)]))
-
+                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle)]))
 
 # Loop over epochs.
 lr = args.lr
 prev_val_loss = None
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+# optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+optimizer = None
 
 best_val_perplex = 99999
 
