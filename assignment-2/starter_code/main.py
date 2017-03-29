@@ -105,15 +105,14 @@ def evaluate(data_source):
     return total_loss[0] / len(data_source)
 
 
-def train():
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
+def train(optimizer):
     total_loss = 0
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
 
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
+        model.train()
         data, targets = get_batch(train_data, i)
         hidden = repackage_hidden(hidden)
         model.zero_grad()
@@ -126,6 +125,7 @@ def train():
 
         total_loss += loss.data
 
+        model.eval()
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
@@ -140,9 +140,11 @@ def train():
 # Loop over epochs.
 lr = args.lr
 prev_val_loss = None
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
-    train()
+    train(optimizer)
     val_loss = evaluate(val_data)
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
