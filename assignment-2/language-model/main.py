@@ -158,15 +158,20 @@ lr = args.lr
 prev_val_loss = None
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
+best_val_perplex = 99999
+
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     train(optimizer)
     val_loss = evaluate(val_data)
+    if math.exp(val_loss) < best_val_perplex:
+        best_val_perplex = math.exp(val_loss)
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-            'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                       val_loss, math.exp(val_loss)))
+            'valid ppl {:8.2f} | best valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                       val_loss, math.exp(val_loss), best_val_perplex))
     print('-' * 89)
+
     # Anneal the learning rate.
     if prev_val_loss and val_loss > prev_val_loss:
         lr /= 4.0
