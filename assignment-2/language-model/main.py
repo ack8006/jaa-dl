@@ -166,6 +166,9 @@ for epoch in range(1, args.epochs+1):
     val_loss = evaluate(val_data)
     if math.exp(val_loss) < best_val_perplex:
         best_val_perplex = math.exp(val_loss)
+        if args.save != '':
+            with open(args.save, 'wb') as f:
+                torch.save(model, f)
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
             'valid ppl {:8.2f} | best valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
@@ -184,6 +187,3 @@ print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
 print('=' * 89)
-if args.save != '':
-    with open(args.save, 'wb') as f:
-        torch.save(model, f)
