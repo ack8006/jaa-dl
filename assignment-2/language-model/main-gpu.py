@@ -5,6 +5,7 @@ import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
 from data_utils import Dictionary, Corpus
+import time
 
 # Hyper Parameters
 embed_size = 128
@@ -85,7 +86,7 @@ for epoch in range(num_epochs):
 
         step = (i+1) // seq_length
         if step % 100 == 0:
-            print ('Epoch [%d/%d], Step[%d/%d], Loss: %.3f, Perplexity: %5.2f' %
+            print (time.ctime() + 'Epoch [%d/%d]\tStep[%d/%d]\tLoss: %.3f\tPerplexity: %5.2f' %
                    (epoch+1, num_epochs, step, num_batches, loss.data[0], np.exp(loss.data[0])))
 
 # Sampling

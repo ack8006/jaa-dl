@@ -86,7 +86,7 @@ for epoch in range(num_epochs):
 
         step = (i+1) // seq_length
         if step % 100 == 0:
-            print (time.ctime() +  '\tEpoch [%d/%d]\tStep[%d/%d]\tLoss: %.3f\tPerplexity: %5.2f' %
+            print (time.ctime() + '\tEpoch [%d/%d]\tStep[%d/%d]\tLoss: %.3f\tPerplexity: %5.2f' %
                    (epoch+1, num_epochs, step, num_batches, loss.data[0], np.exp(loss.data[0])))
 
 # Sampling
