@@ -1,123 +1,184 @@
-# Some part of the code was referenced from below.
-# https://github.com/pytorch/examples/tree/master/word_language_model 
-import torch 
-import torch.nn as nn
-import numpy as np
-from torch.autograd import Variable
-from data_utils import Dictionary, Corpus
+import argparse
 import time
+import math
+import torch
+import torch.nn as nn
+from torch.nn.utils import clip_grad_norm
+from torch.autograd import Variable
 
-# Hyper Parameters
-embed_size = 128
-hidden_size = 1024
-num_layers = 1
-num_epochs = 5
-num_samples = 1000   # number of words to be sampled
-batch_size = 20
-seq_length = 30
-learning_rate = 0.002
+import data
+import model
 
-# Load Penn Treebank Dataset
-train_path = './data/train.txt'
-sample_path = './sample.txt'
-corpus = Corpus()
-ids = corpus.get_data(train_path, batch_size)
-vocab_size = len(corpus.dictionary)
-num_batches = ids.size(1) // seq_length
+parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
+parser.add_argument('--data', type=str, default='../data/penn',
+                    help='location of the data corpus')
+parser.add_argument('--model', type=str, default='LSTM',
+                    help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+parser.add_argument('--emsize', type=int, default=50,
+                    help='size of word embeddings')
+parser.add_argument('--nhid', type=int, default=50,
+                    help='humber of hidden units per layer')
+parser.add_argument('--nlayers', type=int, default=1,
+                    help='number of layers')
+parser.add_argument('--lr', type=float, default=0.01,
+                    help='initial learning rate')
+parser.add_argument('--clip', type=float, default=0.5,
+                    help='gradient clipping')
+parser.add_argument('--encinit', type=str, default='xavier_u',
+                    help='encoder weight initialization type')
+parser.add_argument('--decinit', type=str, default='random',
+                    help='decoder weight initialization type')
+parser.add_argument('--weightinit', type=str, default='orthogonal',
+                    help='recurrent hidden weight initialization type')
+parser.add_argument('--dropout', type=float, default=0.5,
+                    help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--tied', action='store_true',
+                    help='tie the word embedding and softmax weights')
+parser.add_argument('--epochs', type=int, default=6,
+                    help='upper epoch limit')
+parser.add_argument('--batch-size', type=int, default=20, metavar='N',
+                    help='batch size')
+parser.add_argument('--bptt', type=int, default=20,
+                    help='sequence length')
+parser.add_argument('--seed', type=int, default=1111,
+                    help='random seed')
+parser.add_argument('--cuda', action='store_true',
+                    help='use CUDA')
+parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+                    help='report interval')
+parser.add_argument('--save', type=str,  default='model.pt',
+                    help='path to save the final model')
+args = parser.parse_args()
 
-# RNN Based Language Model
-class RNNLM(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers):
-        super(RNNLM, self).__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-        self.linear = nn.Linear(hidden_size, vocab_size)
-        self.init_weights()
-        
-    def init_weights(self):
-        self.embed.weight.data.uniform_(-0.1, 0.1)
-        self.linear.bias.data.fill_(0)
-        self.linear.weight.data.uniform_(-0.1, 0.1)
-        
-    def forward(self, x, h):
-        # Embed word ids to vectors
-        x = self.embed(x) 
-        
-        # Forward propagate RNN  
-        out, h = self.lstm(x, h)
-        
-        # Reshape output to (batch_size*sequence_length, hidden_size)
-        out = out.contiguous().view(out.size(0)*out.size(1), out.size(2))
-        
-        # Decode hidden states of all time step
-        out = self.linear(out)  
-        return out, h
-    
-model = RNNLM(vocab_size, embed_size, hidden_size, num_layers)
+# Set the random seed manually for reproducibility.
+torch.manual_seed(args.seed)
 
+###############################################################################
+# Load data
+###############################################################################
 
-# Loss and Optimizer
+corpus = data.Corpus(args.data)
+
+def batchify(data, bsz):
+    nbatch = data.size(0) // bsz
+    data = data.narrow(0, 0, nbatch * bsz)
+    data = data.view(bsz, -1).t().contiguous()
+    if args.cuda:
+        data = data.cuda()
+    return data
+
+eval_batch_size = 10
+train_data = batchify(corpus.train, args.batch_size)
+val_data = batchify(corpus.valid, eval_batch_size)
+test_data = batchify(corpus.test, eval_batch_size)
+
+###############################################################################
+# Build the model
+###############################################################################
+
+ntokens = len(corpus.dictionary)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout,
+                        args.tied, args.encinit, args.decinit)
+if args.cuda:
+    model.cuda()
+
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-# Truncated Backpropagation 
-def detach(states):
-    return [Variable(state.data) for state in states] 
+###############################################################################
+# Training code
+###############################################################################
 
-# Training
-for epoch in range(num_epochs):
-    # Initial hidden and memory states
-    states = (Variable(torch.zeros(num_layers, batch_size, hidden_size)),
-              Variable(torch.zeros(num_layers, batch_size, hidden_size)))
-    
-    for i in range(0, ids.size(1) - seq_length, seq_length):
-        # Get batch inputs and targets
-        inputs = Variable(ids[:, i:i+seq_length])
-        targets = Variable(ids[:, (i+1):(i+1)+seq_length].contiguous())
-        
-        # Forward + Backward + Optimize
+def repackage_hidden(h):
+    """Wraps hidden states in new Variables, to detach them from their history."""
+    if type(h) == Variable:
+        return Variable(h.data)
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+
+def get_batch(source, i, evaluation=False):
+    seq_len = min(args.bptt, len(source) - 1 - i)
+    data = Variable(source[i:i+seq_len], volatile=evaluation)
+    target = Variable(source[i+1:i+1+seq_len].view(-1))
+    return data, target
+
+
+def evaluate(data_source):
+    model.eval()
+    total_loss = 0
+    ntokens = len(corpus.dictionary)
+    hidden = model.init_hidden(eval_batch_size, args.weightinit)
+    for i in range(0, data_source.size(0) - 1, args.bptt):
+        data, targets = get_batch(data_source, i, evaluation=True)
+        output, hidden = model(data, hidden)
+        output_flat = output.view(-1, ntokens)
+        total_loss += len(data) * criterion(output_flat, targets).data
+        hidden = repackage_hidden(hidden)
+    return total_loss[0] / len(data_source)
+
+
+def train(optimizer):
+    model.train()
+    total_loss = 0
+    start_time = time.time()
+    ntokens = len(corpus.dictionary)
+    hidden = model.init_hidden(args.batch_size, args.weightinit)
+
+    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
+        data, targets = get_batch(train_data, i)
+        hidden = repackage_hidden(hidden)
         model.zero_grad()
-        states = detach(states)
-        outputs, states = model(inputs, states) 
-        loss = criterion(outputs, targets.view(-1))
+        output, hidden = model(data, hidden)
+        loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
-        torch.nn.utils.clip_grad_norm(model.parameters(), 0.5)
+
+        clip_grad_norm(model.parameters(), args.clip)
         optimizer.step()
 
-        step = (i+1) // seq_length
-        if step % 100 == 0:
-            print (time.ctime() + '\tEpoch [%d/%d]\tStep[%d/%d]\tLoss: %.3f\tPerplexity: %5.2f' %
-                   (epoch+1, num_epochs, step, num_batches, loss.data[0], np.exp(loss.data[0])))
+        total_loss += loss.data
 
-# Sampling
-with open(sample_path, 'w') as f:
-    # Set intial hidden ane memory states
-    state = (Variable(torch.zeros(num_layers, 1, hidden_size)),
-         Variable(torch.zeros(num_layers, 1, hidden_size)))
+        if batch % args.log_interval == 0 and batch > 0:
+            cur_loss = total_loss[0] / args.log_interval
+            elapsed = time.time() - start_time
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                    'loss {:5.2f} | ppl {:8.2f}'.format(
+                epoch, batch, len(train_data) // args.bptt, lr,
+                elapsed * 1000.0 / args.log_interval, cur_loss, math.exp(cur_loss)))
+            total_loss = 0
+            start_time = time.time()
 
-    # Select one word id randomly
-    prob = torch.ones(vocab_size)
-    input = Variable(torch.multinomial(prob, num_samples=1).unsqueeze(1),
-                     volatile=True)
 
-    for i in range(num_samples):
-        # Forward propagate rnn 
-        output, state = model(input, state)
-        
-        # Sample a word id
-        prob = output.squeeze().data.exp()
-        word_id = torch.multinomial(prob, 1)[0]
-        
-        # Feed sampled word id to next time step
-        input.data.fill_(word_id)
-        
-        # File write
-        word = corpus.dictionary.idx2word[word_id]
-        word = '\n' if word == '<eos>' else word + ' '
-        f.write(word)
+print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle')
+print('\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
+                                    args.decinit, args.weightinit, args.dropout, args.tied)]))
 
-        if (i+1) % 100 == 0:
-            print('Sampled [%d/%d] words and save to %s'%(i+1, num_samples, sample_path))
 
-# Save the Trained Model
-torch.save(model.state_dict(), 'model.pkl')
+# Loop over epochs.
+lr = args.lr
+prev_val_loss = None
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+for epoch in range(1, args.epochs+1):
+    epoch_start_time = time.time()
+    train(optimizer)
+    val_loss = evaluate(val_data)
+    print('-' * 89)
+    print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
+            'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
+                                       val_loss, math.exp(val_loss)))
+    print('-' * 89)
+    # Anneal the learning rate.
+    if prev_val_loss and val_loss > prev_val_loss:
+        lr /= 4.0
+    prev_val_loss = val_loss
+
+
+# Run on test data and save the model.
+test_loss = evaluate(test_data)
+print('=' * 89)
+print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
+    test_loss, math.exp(test_loss)))
+print('=' * 89)
+if args.save != '':
+    with open(args.save, 'wb') as f:
+        torch.save(model, f)

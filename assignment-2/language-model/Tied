@@ -1,0 +1,7 @@
+Tied
+Droput
+initialziation
+printing
+
+at each epoch print best perplexity
+save best perplexity model
