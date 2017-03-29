@@ -3,6 +3,7 @@ import time
 import math
 import torch
 import torch.nn as nn
+from torch.nn.utils import clip_grad_norm
 from torch.autograd import Variable
 
 import data
@@ -19,7 +20,7 @@ parser.add_argument('--nhid', type=int, default=50,
                     help='humber of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=20,
+parser.add_argument('--lr', type=float, default=0.01,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.5,
                     help='gradient clipping')
@@ -76,16 +77,6 @@ criterion = nn.CrossEntropyLoss()
 # Training code
 ###############################################################################
 
-def clip_gradient(model, clip):
-    """Computes a gradient clipping coefficient based on gradient norm."""
-    totalnorm = 0
-    for p in model.parameters():
-        modulenorm = p.grad.data.norm()
-        totalnorm += modulenorm ** 2
-    totalnorm = math.sqrt(totalnorm)
-    return min(1, args.clip / (totalnorm + 1e-6))
-
-
 def repackage_hidden(h):
     """Wraps hidden states in new Variables, to detach them from their history."""
     if type(h) == Variable:
@@ -115,10 +106,13 @@ def evaluate(data_source):
 
 
 def train():
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
     total_loss = 0
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         hidden = repackage_hidden(hidden)
@@ -127,9 +121,8 @@ def train():
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
-        clipped_lr = lr * clip_gradient(model, args.clip)
-        for p in model.parameters():
-            p.data.add_(-clipped_lr, p.grad.data)
+        clip_grad_norm(model.parameters(), args.clip)
+        optimizer.step()
 
         total_loss += loss.data
 
