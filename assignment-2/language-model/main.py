@@ -34,6 +34,8 @@ parser.add_argument('--weightinit', type=str, default='orthogonal',
                     help='recurrent hidden weight initialization type')
 parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
+parser.add_argument('--optim', type=str, default=None,
+                    help='optimizer type')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--shuffle', action='store_true',
@@ -99,7 +101,6 @@ ntokens = len(corpus.dictionary)
 glove_embeddings = None
 if args.encinit == 'glove':
     assert args.emsize in (50, 100, 200, 300)
-    print('Loading Glove')
     glove_embeddings = get_glove_embeddings(args.glove_data, corpus, ntokens, args.emsize)
 
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout,
@@ -158,9 +159,11 @@ def train(optimizer):
         loss.backward()
 
         clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
-        # optimizer.step()
+        if optimizer:
+            optimizer.step()
+        else:
+            for p in model.parameters():
+                p.data.add_(-lr, p.grad.data)
 
         total_loss += loss.data
 
@@ -176,16 +179,17 @@ def train(optimizer):
 
 
 model_config = '\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
-                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle, ntokens, args.vocab)])
+                                    args.decinit, args.weightinit, args.dropout, args.optim, args.lr, args.tied, args.shuffle, ntokens, args.vocab)])
 
-print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle | Ntokens | VocabSize')
+print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Optimizer| LR | Tied | Shuffle | Ntokens | VocabSize')
 print(model_config)
 
 # Loop over epochs.
 lr = args.lr
 prev_val_loss = None
-# optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 optimizer = None
+if args.optim == 'adam':
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
 best_val_perplex = 99999
 
