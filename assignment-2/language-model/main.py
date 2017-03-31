@@ -34,7 +34,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
                     help='dropout applied to layers (0 = no dropout)')
 parser.add_argument('--tied', action='store_true',
                     help='tie the word embedding and softmax weights')
-parser.add_argument('--shuffle', action='store_false',
+parser.add_argument('--shuffle', action='store_true',
                     help='tie the word embedding and softmax weights')
 parser.add_argument('--epochs', type=int, default=6,
                     help='upper epoch limit')
