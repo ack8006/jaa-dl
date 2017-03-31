@@ -152,9 +152,11 @@ def train(optimizer):
             start_time = time.time()
 
 
-print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle')
-print('\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
-                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle)]))
+model_config = '\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
+                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle, ntokens)])
+
+print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle | Ntokens')
+print(model_config)
 
 # Loop over epochs.
 lr = args.lr
@@ -171,8 +173,14 @@ for epoch in range(1, args.epochs+1):
     if math.exp(val_loss) < best_val_perplex:
         best_val_perplex = math.exp(val_loss)
         if args.save != '':
-            with open(args.save, 'wb') as f:
-                torch.save(model, f)
+            # save the model
+            torch.save(model, args.save)
+            # save model state_dict to avoid pytorch version problems
+            torch.save(model.state_dict(), args.save + ".state_dict")
+            # save config of state_dict which will be needed while loading the model
+            with open(args.save + ".state_dict.config", "w") as f:
+                f.write(model_config)
+
     print('-' * 89)
     print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
             'valid ppl {:8.2f} | best valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
