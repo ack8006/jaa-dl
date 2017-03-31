@@ -14,7 +14,7 @@ parser.add_argument('--data', type=str, default='../data/penn',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=50,
+parser.add_argument('--emsize', type=int, default=300,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=50,
                     help='humber of hidden units per layer')
@@ -24,8 +24,10 @@ parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.5,
                     help='gradient clipping')
-parser.add_argument('--encinit', type=str, default='xavier_u',
+parser.add_argument('--encinit', type=str, default='glove',
                     help='encoder weight initialization type')
+parser.add_argument('--glove_data', type=str, default='../data/glove.6B',
+                    help='location of the pretrained glove embeddings')
 parser.add_argument('--decinit', type=str, default='random',
                     help='decoder weight initialization type')
 parser.add_argument('--weightinit', type=str, default='orthogonal',
@@ -69,6 +71,18 @@ def batchify(data, bsz):
         data = data.cuda()
     return data
 
+def get_glove_embeddings(file_path, corpus, ntoken, nemb):
+    file_name = '/glove.6B.{}d.txt'.format(nemb)
+    f = open(file_path+file_name, 'r')
+    embeddings = torch.nn.init.xavier_uniform(torch.Tensor(ntoken, nemb))
+    for line in f:
+        split_line = line.split()
+        word = split_line[0]
+        if word in corpus.dictionary.word2idx:
+            embedding = torch.Tensor([float(val) for val in split_line[1:]])
+            embeddings[corpus.dictionary.word2idx[word]] = embedding
+    return embeddings
+
 eval_batch_size = 10
 train_data = batchify(corpus.train, args.batch_size)
 val_data = batchify(corpus.valid, eval_batch_size)
@@ -79,8 +93,15 @@ test_data = batchify(corpus.test, eval_batch_size)
 ###############################################################################
 
 ntokens = len(corpus.dictionary)
+
+glove_embeddings = None
+if args.encinit == 'glove':
+    assert args.emsize in (50, 100, 200, 300)
+    print('Loading Glove')
+    glove_embeddings = get_glove_embeddings(args.glove_data, corpus, ntokens, args.emsize)
+
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout,
-                        args.tied, args.encinit, args.decinit)
+                        args.tied, args.encinit, args.decinit, glove_embeddings)
 if args.cuda:
     model.cuda()
 

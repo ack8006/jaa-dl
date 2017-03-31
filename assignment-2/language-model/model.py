@@ -7,7 +7,8 @@ from torch.autograd import Variable
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, tie_weights, encoder_init, decoder_init):
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, tie_weights, 
+                    encoder_init, decoder_init, glove_embeddings):
         super(RNNModel, self).__init__()
         self.drop = nn.Dropout(dropout)
 
@@ -17,27 +18,29 @@ class RNNModel(nn.Module):
 
         self.decoder_init = decoder_init
         self.encoder_init = encoder_init
-        
+
         if tie_weights:
             self.decoder.weight = self.encoder.weight
 
         self.init_val = 0.1
-        self.init_weights()
+        self.init_weights(glove_embeddings)
 
         self.rnn_type = rnn_type
         self.nhid = nhid
         self.nlayers = nlayers
 
-    def init_weights(self):
-        bias_init = 0
-        init.constant(self.decoder.bias, bias_init)
+    def init_weights(self, glove_embeddings):
+        bias_init_val = 0
+        init.constant(self.decoder.bias, bias_init_val)
         init_types = {'random':functools.partial(init.uniform, a=-self.init_val, b=self.init_val),
                         'constant': functools.partial(init.constant, val=self.init_val),
                         'xavier_n': init.xavier_normal,
                         'xavier_u': init.xavier_uniform,
                         'orthogonal': init.orthogonal}
-
-        init_types[self.encoder_init](self.encoder.weight)
+        if self.encoder_init == 'glove':
+            self.encoder.weight.data = glove_embeddings
+        else:
+            init_types[self.encoder_init](self.encoder.weight)
         init_types[self.decoder_init](self.decoder.weight)
 
     def forward(self, input, hidden):
