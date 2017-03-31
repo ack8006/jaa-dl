@@ -44,6 +44,8 @@ parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                     help='batch size')
 parser.add_argument('--bptt', type=int, default=20,
                     help='sequence length')
+parser.add_argument('--vocab', type=int, default=10000,
+                    help='size of vocabulary')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
@@ -61,7 +63,7 @@ torch.manual_seed(args.seed)
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data)
+corpus = data.Corpus(args.data, args.vocab)
 
 def batchify(data, bsz):
     nbatch = data.size(0) // bsz
@@ -174,9 +176,9 @@ def train(optimizer):
 
 
 model_config = '\t'.join([str(x) for x in (torch.__version__, args.model, args.clip, args.nlayers, args.emsize, args.nhid, args.encinit,
-                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle, ntokens)])
+                                    args.decinit, args.weightinit, args.dropout, args.tied, args.shuffle, ntokens, args.vocab)])
 
-print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle | Ntokens')
+print('Pytorch | RnnType | Clip | #Layers | EmbDim | HiddenDim | EncoderInit | DecoderInit | WeightInit | Dropout | Tied | Shuffle | Ntokens | VocabSize')
 print(model_config)
 
 # Loop over epochs.
