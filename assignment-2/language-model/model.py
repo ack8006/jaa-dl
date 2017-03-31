@@ -13,7 +13,7 @@ class RNNModel(nn.Module):
         self.drop = nn.Dropout(dropout)
 
         self.encoder = nn.Embedding(ntoken, ninp)
-        self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout, bias=False)
+        self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
         self.decoder = nn.Linear(nhid, ntoken)
 
         self.decoder_init = decoder_init
