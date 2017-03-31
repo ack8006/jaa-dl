@@ -29,7 +29,7 @@ class RNNModel(nn.Module):
         self.nlayers = nlayers
 
     def init_weights(self):
-        bias_init = 0.1
+        bias_init = 0
         init.constant(self.decoder.bias, bias_init)
         init_types = {'random':functools.partial(init.uniform, a=-self.init_val, b=self.init_val),
                         'constant': functools.partial(init.constant, val=self.init_val),
