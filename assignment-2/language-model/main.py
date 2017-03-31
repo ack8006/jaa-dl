@@ -14,15 +14,15 @@ parser.add_argument('--data', type=str, default='../data/penn',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=300,
+parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=50,
+parser.add_argument('--nhid', type=int, default=200,
                     help='humber of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=1,
+parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
 parser.add_argument('--lr', type=float, default=20,
                     help='initial learning rate')
-parser.add_argument('--clip', type=float, default=0.5,
+parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--encinit', type=str, default='glove',
                     help='encoder weight initialization type')
@@ -44,7 +44,7 @@ parser.add_argument('--epochs', type=int, default=6,
                     help='upper epoch limit')
 parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                     help='batch size')
-parser.add_argument('--bptt', type=int, default=20,
+parser.add_argument('--bptt', type=int, default=35,
                     help='sequence length')
 parser.add_argument('--vocab', type=int, default=10000,
                     help='size of vocabulary')
