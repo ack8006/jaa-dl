@@ -190,6 +190,8 @@ prev_val_loss = None
 optimizer = None
 if args.optim == 'adam':
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+elif args.optim == 'sgd':
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
 best_val_perplex = 99999
 
