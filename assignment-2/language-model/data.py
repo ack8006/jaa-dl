@@ -1,6 +1,7 @@
 import os
 from collections import Counter
 import torch
+import random
 
 class Dictionary(object):
     def __init__(self):
@@ -18,11 +19,12 @@ class Dictionary(object):
 
 
 class Corpus(object):
-    def __init__(self, path, vocab_size=10000):
+    def __init__(self, path, vocab_size=10000, shuffle=False):
         self.dictionary = Dictionary()
         self.vocab_size = vocab_size
+        self.shuffle = shuffle
         self.gen_vocab(os.path.join(path, 'train.txt'))
-        self.train = self.tokenize(os.path.join(path, 'train.txt'))
+        self.train = self.tokenize(os.path.join(path, 'train.txt'), self.shuffle)
         self.valid = self.tokenize(os.path.join(path, 'valid.txt'))
         self.test = self.tokenize(os.path.join(path, 'test.txt'))
 
@@ -39,13 +41,16 @@ class Corpus(object):
         self.dictionary.add_word('<unk>')
 
 
-    def tokenize(self, path):
+    def tokenize(self, path, shuffle=False):
         """Tokenizes a text file."""
         assert os.path.exists(path)
         # Add words to the dictionary
         token_list = []
         with open(path, 'r', encoding="ISO-8859-1") as f:
-            for line in f:
+            lines = f.readlines()
+            if shuffle:
+                random.shuffle(lines)
+            for line in lines:
                 words = line.split() + ['<eos>']
                 for word in words:
                     if word in self.dictionary.word2idx:

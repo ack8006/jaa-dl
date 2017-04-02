@@ -65,7 +65,7 @@ torch.manual_seed(args.seed)
 # Load data
 ###############################################################################
 
-corpus = data.Corpus(args.data, args.vocab)
+corpus = data.Corpus(args.data, args.vocab, args.shuffle)
 
 def batchify(data, bsz):
     nbatch = data.size(0) // bsz
