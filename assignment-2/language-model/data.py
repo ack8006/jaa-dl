@@ -29,13 +29,14 @@ class Corpus(object):
 
     def gen_vocab(self, path):
         assert os.path.exists(path)
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding="ISO-8859-1") as f:
             all_words = []
             for line in f:
                 for word in line.split() + ['<eos>']:
                     all_words.append(word)
             for word, _ in Counter(all_words).most_common(self.vocab_size):
                 self.dictionary.add_word(word)
+        self.dictionary.add_word('<unk>')
 
 
     def tokenize(self, path):
@@ -43,7 +44,7 @@ class Corpus(object):
         assert os.path.exists(path)
         # Add words to the dictionary
         token_list = []
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding="ISO-8859-1") as f:
             for line in f:
                 words = line.split() + ['<eos>']
                 for word in words:
