@@ -51,7 +51,7 @@ parser.add_argument('--vocab', type=int, default=10000,
                     help='size of vocabulary')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_true',
+parser.add_argument('--cuda', type=int, default=1,
                     help='use CUDA')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
