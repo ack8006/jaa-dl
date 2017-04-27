@@ -10,25 +10,25 @@ Reimplementation of [cycle-gan](https://arxiv.org/pdf/1703.10593.pdf) with [impr
 
 - Training is done with nVidia Titan X Pascal GPU.
 - aerial maps <-> maps
-![loss graph](/assets/training_loss.png)
+![loss graph](assets/training_loss.png)
     - A(aerial map) -> B(map) -> A
-![result of **training** examples(a->b->a)](/assets/a_to_b_to_a.png)
+![result of **training** examples(a->b->a)](assets/a_to_b_to_a.png)
     - B -> A -> B
-![result of **training** examples(b->a->b)](/assets/b_to_a_to_b.png)
+![result of **training** examples(b->a->b)](assets/b_to_a_to_b.png)
 
 ## Result on test sets
 
 - Each model trained 20000 steps(20000*8/1000 ~= about 160 epochs).
 
 - aerial maps <-> maps
-![](/assets/map2airview.jpg)
-![](/assets/airview2map.jpg)
+![](assets/map2airview.jpg)
+![](assets/airview2map.jpg)
 - horse <-> zebra
-![](/assets/horse2zebra.jpg)
-![](/assets/zebra2horse.jpg)
+![](assets/horse2zebra.jpg)
+![](assets/zebra2horse.jpg)
 - apple <-> orange
-![](/assets/apple2orange.jpg)
-![](/assets/orange2apple.jpg)
+![](assets/apple2orange.jpg)
+![](assets/orange2apple.jpg)
 
 ## Training
 
