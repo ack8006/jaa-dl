@@ -132,7 +132,7 @@ class CycleGANModel(BaseModel):
         pred_real = netD.forward(real)
         pred_fake = netD.forward(fake)
         loss_D = self.criterionGAN(pred_fake, pred_real, generator_loss=False)
-        loss_D.backward()
+        loss_D.backward(retain_variables=True)
         return loss_D
 
     def backward_D_A(self):
