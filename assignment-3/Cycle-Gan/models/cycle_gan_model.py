@@ -22,6 +22,12 @@ class CycleGANModel(BaseModel):
         self.input_A = self.Tensor(nb, opt.input_nc, size, size)
         self.input_B = self.Tensor(nb, opt.output_nc, size, size)
 
+        # flag for indicating usage of Wasserstein GAN
+        self.use_wgan = opt.wgan
+        self.wgan_n_critic = opt.wgan_n_critic
+        self.wgan_clamp_lower = opt.wgan_clamp_lower
+        self.wgan_clamp_upper = opt.wgan_clamp_upper
+
         # load/define networks
         # The naming conversion is different from those used in the paper
         # Code (paper): G_A (G), G_B (F), D_A (D_Y), D_B (D_X)
@@ -52,16 +58,25 @@ class CycleGANModel(BaseModel):
             self.fake_A_pool = ImagePool(opt.pool_size)
             self.fake_B_pool = ImagePool(opt.pool_size)
             # define loss functions
-            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
+            if opt.wgan:
+                self.criterionGAN = networks.WassersteinGANLoss()
+            else:
+                self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
             # initialize optimizers
-            self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
-                                                lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.optimizer_D_A = torch.optim.Adam(self.netD_A.parameters(),
-                                                lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.optimizer_D_B = torch.optim.Adam(self.netD_B.parameters(),
-                                                lr=opt.lr, betas=(opt.beta1, 0.999))
+            if opt.wgan:
+                self.optimizer_G = torch.optim.RMSprop(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
+                                                       lr=opt.wgan_lrG)
+                self.optimizer_D_A = torch.optim.RMSprop(self.netD_A.parameters(), lr=opt.wgan_lrD)
+                self.optimizer_D_B = torch.optim.RMSprop(self.netD_B.parameters(), lr=opt.wgan_lrD)
+            else:
+                self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
+                                                    lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_D_A = torch.optim.Adam(self.netD_A.parameters(),
+                                                    lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_D_B = torch.optim.Adam(self.netD_B.parameters(),
+                                                    lr=opt.lr, betas=(opt.beta1, 0.999))
 
             print('---------- Networks initialized -------------')
             networks.print_network(self.netG_A)
@@ -108,6 +123,14 @@ class CycleGANModel(BaseModel):
         loss_D.backward()
         return loss_D
 
+    def backward_D_wasserstein(self, netD, real, fake):
+        # Real
+        pred_real = netD.forward(real)
+        pred_fake = netD.forward(fake)
+        loss_D = self.criterionGAN(pred_fake, pred_real, generator_loss=False)
+        loss_D.backward()
+        return loss_D
+
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
         self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B)
@@ -115,6 +138,14 @@ class CycleGANModel(BaseModel):
     def backward_D_B(self):
         fake_A = self.fake_A_pool.query(self.fake_A)
         self.loss_D_B =  self.backward_D_basic(self.netD_B, self.real_A, fake_A)
+
+    def backward_wgan_D(self):
+        # D_A
+        fake_B = self.fake_B_pool.query(self.fake_B)
+        self.loss_D_A = self.backward_D_wasserstein(self.netD_A, self.real_B, fake_B)
+        # D_B
+        fake_A = self.fake_A_pool.query(self.fake_A)
+        self.loss_D_B = self.backward_D_wasserstein(self.netD_B, self.real_A, fake_A)
 
     def backward_G(self):
         lambda_idt = self.opt.identity
@@ -151,21 +182,72 @@ class CycleGANModel(BaseModel):
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
         self.loss_G.backward()
 
+    def backward_wgan_G(self):
+        # TODO: Incorporate identity loss, ignoring it for the time being
+
+        lambda_A = self.opt.lambda_A
+        lambda_B = self.opt.lambda_B
+
+        self.loss_idt_A = 0
+        self.loss_idt_B = 0
+
+        # Wasserstein-GAN loss
+        # G_A(A)
+        self.fake_B = self.netG_A.forward(self.real_A)
+        self.loss_G_A = self.criterionGAN(self.fake_B, generator_loss=True)
+
+        # G_B(B)
+        self.fake_A = self.netG_B.forward(self.real_B)
+        self.loss_G_B = self.criterionGAN(self.fake_A, generator_loss=True)
+
+        # Forward cycle loss
+        self.rec_A = self.netG_B.forward(self.fake_B)
+        self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
+
+        # Backward cycle loss
+        self.rec_B = self.netG_A.forward(self.fake_A)
+        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
+
+        # Combined loss
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
+
+        # Backprop
+        self.loss_G.backward()
+
     def optimize_parameters(self):
         # forward
         self.forward()
-        # G_A and G_B
-        self.optimizer_G.zero_grad()
-        self.backward_G()
-        self.optimizer_G.step()
-        # D_A
-        self.optimizer_D_A.zero_grad()
-        self.backward_D_A()
-        self.optimizer_D_A.step()
-        # D_B
-        self.optimizer_D_B.zero_grad()
-        self.backward_D_B()
-        self.optimizer_D_B.step()
+        if self.use_wgan:
+            # Train the critics to optimality
+            for i_critic in range(self.wgan_n_critic):
+                # Clip the parameters for k-Lipschitz continuity
+                for p in self.netD_A.parameters():
+                    p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
+                for p in self.netD_B.parameters():
+                    p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
+                self.optimizer_D_A.zero_grad()
+                self.optimizer_D_B.zero_grad()
+                self.backward_wgan_D()
+                self.optimizer_D_A.step()
+                self.optimizer_D_B.step()
+            # Train the generators
+            self.optimizer_G.zero_grad()
+            self.backward_wgan_G()
+            self.optimizer_G.step()
+
+        else:
+            # G_A and G_B
+            self.optimizer_G.zero_grad()
+            self.backward_G()
+            self.optimizer_G.step()
+            # D_A
+            self.optimizer_D_A.zero_grad()
+            self.backward_D_A()
+            self.optimizer_D_A.step()
+            # D_B
+            self.optimizer_D_B.zero_grad()
+            self.backward_D_B()
+            self.optimizer_D_B.step()
 
 
     def get_current_errors(self):

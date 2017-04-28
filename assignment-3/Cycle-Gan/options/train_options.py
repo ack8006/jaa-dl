@@ -20,5 +20,11 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
         self.parser.add_argument('--pool_size', type=int, default=0, help='the size of image buffer that stores previously generated images')
         self.parser.add_argument('--no_html', action='store_true', help='do not save intermediate training results to [opt.checkpoints_dir]/[opt.name]/web/')
+        self.parser.add_argument('--wgan', action='store_true', help='use Wasserstein GAN for training instead of classic GAN')
+        self.parser.add_argument('--wgan_n_critic', type=int, default=4, help='number of iterations for training the wgan critic before training the wgan generator')
+        self.parser.add_argument('--wgan_clamp_lower', type=float, default=-0.01, help='lower bound for wgan Lipschitz clamping')
+        self.parser.add_argument('--wgan_clamp_upper', type=float, default=0.01, help='upper bound for wgan Lipschitz clamping')
+        self.parser.add_argument('--wgan_lrD', type=float, default=0.00005, help='learning rate for wgan Critic, default=0.00005')
+        self.parser.add_argument('--wgan_lrG', type=float, default=0.00005, help='learning rate for wgan Generator, default=0.00005')
         # NOT-IMPLEMENTED self.parser.add_argument('--preprocessing', type=str, default='resize_and_crop', help='resizing/cropping strategy')
         self.isTrain = True

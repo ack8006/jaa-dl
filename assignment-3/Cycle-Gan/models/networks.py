@@ -122,24 +122,15 @@ class WassersteinGANLoss(nn.Module):
     """WassersteinGANLoss
     ref: Wasserstein GAN (https://arxiv.org/abs/1701.07875)
     """
-    def __init__(self, target_real_label=1.0, target_fake_label=0.0, tensor=torch.FloatTensor):
+    def __init__(self):
         super(WassersteinGANLoss, self).__init__()
-        self.real_label = target_real_label
-        self.fake_label = target_fake_label
-        self.real_label_var = None
-        self.fake_label_val = None
-        self.Tensor = tensor
-        # TODO: define self.loss
 
-        raise NotImplementedError
-
-    def __call__(self, input, target_is_real):
-        target_tensor = None
-        if target_is_real:
-            raise NotImplementedError
+    def __call__(self, fake, real=None, generator_loss=True):
+        if generator_loss:
+            wloss = -fake.mean()
         else:
-            raise NotImplementedError
-        return target_tensor
+            wloss = fake.mean() - real.mean()
+        return wloss
 
 
 # Defines the generator that consists of Resnet blocks between a few
