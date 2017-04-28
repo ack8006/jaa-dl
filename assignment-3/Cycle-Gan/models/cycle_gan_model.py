@@ -27,6 +27,10 @@ class CycleGANModel(BaseModel):
         self.wgan_n_critic = opt.wgan_n_critic
         self.wgan_clamp_lower = opt.wgan_clamp_lower
         self.wgan_clamp_upper = opt.wgan_clamp_upper
+        self.wgan_train_critics = False
+
+        if self.use_wgan:
+            print("We are Wasserstein-GANing")
 
         # load/define networks
         # The naming conversion is different from those used in the paper
@@ -218,22 +222,25 @@ class CycleGANModel(BaseModel):
         # forward
         self.forward()
         if self.use_wgan:
-            # Train the critics to optimality
-            for i_critic in range(self.wgan_n_critic):
-                # Clip the parameters for k-Lipschitz continuity
-                for p in self.netD_A.parameters():
-                    p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
-                for p in self.netD_B.parameters():
-                    p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
-                self.optimizer_D_A.zero_grad()
-                self.optimizer_D_B.zero_grad()
-                self.backward_wgan_D()
-                self.optimizer_D_A.step()
-                self.optimizer_D_B.step()
+            if self.wgan_train_critics:
+                # Train the critics to optimality
+                for i_critic in range(self.wgan_n_critic):
+                    # Clip the parameters for k-Lipschitz continuity
+                    for p in self.netD_A.parameters():
+                        p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
+                    for p in self.netD_B.parameters():
+                        p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
+                    self.optimizer_D_A.zero_grad()
+                    self.optimizer_D_B.zero_grad()
+                    self.backward_wgan_D()
+                    self.optimizer_D_A.step()
+                    self.optimizer_D_B.step()
             # Train the generators
             self.optimizer_G.zero_grad()
             self.backward_wgan_G()
             self.optimizer_G.step()
+            if not self.wgan_train_critics:
+                self.wgan_train_critics = True
 
         else:
             # G_A and G_B
