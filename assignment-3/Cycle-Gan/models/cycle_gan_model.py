@@ -188,6 +188,7 @@ class CycleGANModel(BaseModel):
 
     def backward_wgan_G(self):
         # TODO: Incorporate identity loss, ignoring it for the time being
+        # TODO: Change the structure of critic/discriminator to the one described in the Wasserstein GAN paper
 
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
