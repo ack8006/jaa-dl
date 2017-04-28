@@ -238,8 +238,9 @@ class CycleGANModel(BaseModel):
             # Train the generators
             self.optimizer_G.zero_grad()
             self.backward_wgan_G()
-            self.optimizer_G.step()
-            if not self.wgan_train_critics:
+            if self.wgan_train_critics:
+                self.optimizer_G.step()
+            else:
                 self.wgan_train_critics = True
 
         else:
