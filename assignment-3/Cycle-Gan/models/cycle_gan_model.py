@@ -187,14 +187,21 @@ class CycleGANModel(BaseModel):
         self.loss_G.backward()
 
     def backward_wgan_G(self):
-        # TODO: Incorporate identity loss, ignoring it for the time being
-        # TODO: Change the structure of critic/discriminator to the one described in the Wasserstein GAN paper
-
+        lambda_idt = self.opt.identity
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
 
-        self.loss_idt_A = 0
-        self.loss_idt_B = 0
+        # Identity loss
+        if lambda_idt > 0:
+            # G_A should be identity if real_B is fed.
+            self.idt_A = self.netG_A.forward(self.real_B)
+            self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
+            # G_B should be identity if real_A is fed.
+            self.idt_B = self.netG_B.forward(self.real_A)
+            self.loss_idt_B = self.criterionIdt(self.idt_B, self.real_A) * lambda_A * lambda_idt
+        else:
+            self.loss_idt_A = 0
+            self.loss_idt_B = 0
 
         # Wasserstein-GAN loss
         # G_A(A)

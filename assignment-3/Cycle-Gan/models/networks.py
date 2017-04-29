@@ -365,8 +365,6 @@ class WassersteinGANCritic(nn.Module):
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Linear(512, 512),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
-            nn.Linear(512, 512),
-            nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Linear(512, 1),
         )
 
