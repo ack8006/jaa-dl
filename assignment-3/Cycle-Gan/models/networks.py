@@ -55,6 +55,8 @@ def define_D(input_nc, ndf, which_model_netD,
         netD = define_D(input_nc, ndf, 'n_layers', use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
     elif which_model_netD == 'n_layers':
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, use_sigmoid, gpu_ids=gpu_ids)
+    elif which_model_netD == 'wgan_critic':
+        netD = WassersteinGANCritic(input_nc, conv_output_dim=6, gpu_ids=gpu_ids)
     else:
         print('Discriminator model name [%s] is not recognized' %
               which_model_netD)
@@ -341,6 +343,38 @@ class NLayerDiscriminator(nn.Module):
             return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
         else:
             return self.model(input)
+
+class WassersteinGANCritic(nn.Module):
+    def __init__(self, in_channels, conv_output_dim, gpu_ids=[]):
+        super(WassersteinGANCritic, self).__init__()
+        self.gpu_ids = gpu_ids
+        self.conv_net = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=4, stride=2),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Conv2d(128, 256, kernel_size=4, stride=2),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Conv2d(256, 512, kernel_size=4, stride=2),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Conv2d(512, 512, kernel_size=4, stride=2),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+        self.mlp_net = nn.Sequential(
+            nn.Linear(512 * conv_output_dim * conv_output_dim, 512),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.Linear(512, 1),
+        )
+
+    def forward(self, input):
+        h = self.conv_net(input)
+        h = h.view(h.size(0), h.size(1) * h.size(2) * h.size(3))
+        return self.mlp_net(h)
+
 
 # Instance Normalization layer from
 # https://github.com/darkstar112358/fast-neural-style
