@@ -227,6 +227,8 @@ class CycleGANModel(BaseModel):
         self.loss_G.backward(retain_variables=True)
 
     def optimize_parameters(self):
+        # TODO: Try and increase the batch size
+        # TODO: Add batch-normalization to the linear layers also
         # forward
         self.forward()
         if self.use_wgan:
