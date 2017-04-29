@@ -350,14 +350,19 @@ class WassersteinGANCritic(nn.Module):
         self.gpu_ids = gpu_ids
         self.conv_net = nn.Sequential(
             nn.Conv2d(in_channels, 64, kernel_size=4, stride=2),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Conv2d(64, 128, kernel_size=4, stride=2),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Conv2d(128, 256, kernel_size=4, stride=2),
+            nn.BatchNorm2d(256),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Conv2d(256, 512, kernel_size=4, stride=2),
+            nn.BatchNorm2d(512),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Conv2d(512, 512, kernel_size=4, stride=2),
+            nn.BatchNorm2d(512),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
         self.mlp_net = nn.Sequential(
