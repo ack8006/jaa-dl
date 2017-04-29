@@ -228,7 +228,7 @@ class CycleGANModel(BaseModel):
 
     def optimize_parameters(self):
         # TODO: Try and increase the batch size
-        # TODO: Add batch-normalization to the linear layers also
+        # TODO: Add InstanceNormalization
         # forward
         self.forward()
         if self.use_wgan:

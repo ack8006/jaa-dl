@@ -367,10 +367,8 @@ class WassersteinGANCritic(nn.Module):
         )
         self.mlp_net = nn.Sequential(
             nn.Linear(512 * conv_output_dim * conv_output_dim, 512),
-            nn.BatchNorm1d(512),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             nn.Linear(512, 1),
         )
