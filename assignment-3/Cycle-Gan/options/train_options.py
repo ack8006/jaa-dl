@@ -26,5 +26,6 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--wgan_clamp_upper', type=float, default=0.01, help='upper bound for wgan Lipschitz clamping')
         self.parser.add_argument('--wgan_lrD', type=float, default=0.00005, help='learning rate for wgan Critic, default=0.00005')
         self.parser.add_argument('--wgan_lrG', type=float, default=0.00005, help='learning rate for wgan Generator, default=0.00005')
+        self.parser.add_argument('--wgan_optimizer', type=str, default='adam', help='optimizer for the generator and discriminator')
         # NOT-IMPLEMENTED self.parser.add_argument('--preprocessing', type=str, default='resize_and_crop', help='resizing/cropping strategy')
         self.isTrain = True

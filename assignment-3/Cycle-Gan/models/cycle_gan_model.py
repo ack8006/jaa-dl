@@ -70,10 +70,16 @@ class CycleGANModel(BaseModel):
             self.criterionIdt = torch.nn.L1Loss()
             # initialize optimizers
             if opt.wgan:
-                self.optimizer_G = torch.optim.RMSprop(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
-                                                       lr=opt.wgan_lrG)
-                self.optimizer_D_A = torch.optim.RMSprop(self.netD_A.parameters(), lr=opt.wgan_lrD)
-                self.optimizer_D_B = torch.optim.RMSprop(self.netD_B.parameters(), lr=opt.wgan_lrD)
+                if opt.wgan_optimizer == 'adam':
+                    self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
+                                                        lr=opt.wgan_lrG, betas=(0.5, 0.9))
+                    self.optimizer_D_A = torch.optim.Adam(self.netD_A.parameters(), lr=opt.wgan_lrD, betas=(0.5, 0.9))
+                    self.optimizer_D_B = torch.optim.Adam(self.netD_B.parameters(), lr=opt.wgan_lrD, betas=(0.5, 0.9))
+                else:
+                    self.optimizer_G = torch.optim.RMSprop(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
+                                                           lr=opt.wgan_lrG)
+                    self.optimizer_D_A = torch.optim.RMSprop(self.netD_A.parameters(), lr=opt.wgan_lrD)
+                    self.optimizer_D_B = torch.optim.RMSprop(self.netD_B.parameters(), lr=opt.wgan_lrD)
             else:
                 self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
                                                     lr=opt.lr, betas=(opt.beta1, 0.999))
