@@ -177,11 +177,11 @@ class CycleGANModel(BaseModel):
         # D_A(G_A(A))
         self.fake_B = self.netG_A.forward(self.real_A)
         pred_fake = self.netD_A.forward(self.fake_B)
-        self.loss_G_A = self.criterionGAN(pred_fake, generator_loss=True)
+        self.loss_G_A = self.criterionGAN(pred_fake, True)
         # D_B(G_B(B))
         self.fake_A = self.netG_B.forward(self.real_B)
         pred_fake = self.netD_B.forward(self.fake_A)
-        self.loss_G_B = self.criterionGAN(pred_fake, generator_loss=True)
+        self.loss_G_B = self.criterionGAN(pred_fake, True)
         # Forward cycle loss
         self.rec_A = self.netG_B.forward(self.fake_B)
         self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
