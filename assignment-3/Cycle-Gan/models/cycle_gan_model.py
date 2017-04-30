@@ -231,7 +231,7 @@ class CycleGANModel(BaseModel):
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
 
         # Backprop
-        self.loss_G.backward(retain_variables=True)
+        self.loss_G.backward()
 
     def optimize_parameters(self):
         # TODO: Try and increase the batch size
