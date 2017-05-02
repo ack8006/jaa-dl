@@ -148,7 +148,7 @@ class CycleGANModel(BaseModel):
         fake_A = self.fake_A_pool.query(self.fake_A)
         self.loss_D_B =  self.backward_D_basic(self.netD_B, self.real_A, fake_A)
 
-    def backward_wgan_D(self):
+    def backward_wgan_D(self, critic_iter):
         # D_A
         fake_B = self.fake_B_pool.query(self.fake_B)
         self.loss_D_A = self.backward_D_wasserstein(self.netD_A, self.real_B, fake_B)
@@ -193,7 +193,7 @@ class CycleGANModel(BaseModel):
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
         self.loss_G.backward()
 
-    def backward_wgan_G(self):
+    def backward_wgan_G(self, do_backward=True):
         lambda_idt = self.opt.identity
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
@@ -230,8 +230,9 @@ class CycleGANModel(BaseModel):
         # Combined loss
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
 
-        # Backprop
-        self.loss_G.backward()
+        if do_backward:
+            # Backprop
+            self.loss_G.backward()
 
     def optimize_parameters(self):
         # TODO: Try and increase the batch size
@@ -249,12 +250,12 @@ class CycleGANModel(BaseModel):
                         p.data.clamp_(self.wgan_clamp_lower, self.wgan_clamp_upper)
                     self.optimizer_D_A.zero_grad()
                     self.optimizer_D_B.zero_grad()
-                    self.backward_wgan_D()
+                    self.backward_wgan_D(i_critic)
                     self.optimizer_D_A.step()
                     self.optimizer_D_B.step()
             # Train the generators
             self.optimizer_G.zero_grad()
-            self.backward_wgan_G()
+            self.backward_wgan_G(do_backward=False)
             if self.wgan_train_critics:
                 self.optimizer_G.step()
             else:
